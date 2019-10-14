@@ -3,7 +3,9 @@ package com.example.jam
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.Bundle
+import android.util.Log
 import android.view.View
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.android.volley.Request
@@ -13,6 +15,7 @@ import com.android.volley.toolbox.Volley
 import com.google.android.material.textfield.TextInputEditText
 import fi.iki.elonen.NanoHTTPD
 import java.io.IOException
+import java.net.URLEncoder
 
 class MainActivity : AppCompatActivity() {
     lateinit var server: receiverServer
@@ -22,9 +25,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         runServer()
+        findViewById<TextView>(R.id.myIP).text = getLocalIpAddress().toString()
     }
 
-    inner class receiverServer @Throws(IOException::class) constructor() : NanoHTTPD(63343) {
+    inner class receiverServer @Throws(IOException::class) constructor() : NanoHTTPD(63342) {
 
         init {
             start(SOCKET_READ_TIMEOUT, false)
@@ -79,6 +83,27 @@ class MainActivity : AppCompatActivity() {
     fun runServer() {
         server = receiverServer()
     }
+    fun getLocalIpAddress(): String? {
+        try {
+
+            val wifiManager: WifiManager = getApplicationContext().getSystemService(Context.WIFI_SERVICE) as WifiManager
+            return ipToString(wifiManager.connectionInfo.ipAddress)
+        } catch (ex: Exception) {
+            Log.e("IP Address", ex.toString())
+        }
+
+        return null
+    }
+
+    fun ipToString(i: Int): String {
+        return (i and 0xFF).toString() + "." +
+                (i shr 8 and 0xFF) + "." +
+                (i shr 16 and 0xFF) + "." +
+                (i shr 24 and 0xFF)
+
+    }
+
+
 
 
     fun getIP(): String? {
@@ -106,9 +131,9 @@ class MainActivity : AppCompatActivity() {
             } else {
                 val queue = Volley.newRequestQueue(this@MainActivity)
                 val ip = getIP()
-                val messageText = getMessageText()
+                val messageText = URLEncoder.encode(getMessageText(),  "UTF-8")
                 val stringRequest = StringRequest(
-                    Request.Method.POST, "http://$ip:63342/?message=true$messageText",
+                    Request.Method.POST, "http://$ip:63342/?message=$messageText",
                     Response.Listener { response ->
                         runOnUiThread {
                             Toast.makeText(this@MainActivity, response, Toast.LENGTH_SHORT).show()
@@ -118,7 +143,7 @@ class MainActivity : AppCompatActivity() {
                         runOnUiThread(
                             Toast.makeText(
                                 this@MainActivity,
-                                "exit error " + error.toString(),
+                                "exit error$error",
                                 Toast.LENGTH_SHORT
                             )::show
                         )

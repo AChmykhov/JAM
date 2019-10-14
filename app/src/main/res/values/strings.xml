@@ -3,4 +3,5 @@
     <string name="sendButton">Send</string>
     <string name="ipHint">IP</string>
     <string name="messageHint">Message</string>
+    <string name="ipFish">ip</string>
 </resources>
