@@ -3,6 +3,8 @@ package com.example.jam
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.Bundle
+import android.util.Base64
+import android.util.Base64.DEFAULT
 import android.util.Log
 import android.view.View
 import android.widget.TextView
@@ -16,9 +18,20 @@ import com.google.android.material.textfield.TextInputEditText
 import fi.iki.elonen.NanoHTTPD
 import java.io.IOException
 import java.net.URLEncoder
+import java.security.KeyPair
+import java.security.KeyPairGenerator
+import java.security.PublicKey
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+
 
 class MainActivity : AppCompatActivity() {
     lateinit var server: receiverServer
+    var keyPair = generateKeys()
+    var symmetricalKey = generateSymKey()
+    var localIv: ByteArray? = null
+    var localRsaIv: ByteArray? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,23 +48,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         fun stpServer() {
-//            val queue = Volley.newRequestQueue(this@MainActivity)
-//            val ip = getIP()
-//            val stringRequest = StringRequest(
-//                Request.Method.POST, "http://$ip:63342/?Exit=true",
-//                com.android.volley.Response.Listener { response ->
-//                    this.stop()
-//                },
-//                com.android.volley.Response.ErrorListener { error ->
-//                    runOnUiThread(
-//                        Toast.makeText(
-//                            this@MainActivity,
-//                            "exit error " + error.toString(),
-//                            Toast.LENGTH_SHORT
-//                        )::show
-//                    )
-//                })
-//            queue.add(stringRequest)
+            //Add here end of session with ndns server
             this.stop()
         }
 
@@ -74,9 +71,21 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(this@MainActivity, it, Toast.LENGTH_SHORT).show()
                     }
                 }
-            }
+                return newFixedLengthResponse("200 OK")
+            }else if (params.containsKey("newMessage")) {
+                runOnUiThread {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "newMessage signal received",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                val publKey = keyPair?.private?.encoded
+                val publicKeyText = Base64.encodeToString(publKey, DEFAULT)
 
-            return newFixedLengthResponse("200 OK")
+                return newFixedLengthResponse(publicKeyText)
+            } else
+               return newFixedLengthResponse("200 OK")
         }
     }
 
@@ -116,6 +125,51 @@ class MainActivity : AppCompatActivity() {
         return dataMessage.text.toString()
     }
 
+    fun generateKeys(): KeyPair? {
+        var keyPair: KeyPair? = null
+        try {
+            val keyGen = KeyPairGenerator.getInstance("RSA")
+            keyGen.initialize(1024)
+            keyPair = keyGen.generateKeyPair()
+        } catch (e: java.lang.Exception) {
+            println(e)
+        }
+
+        return keyPair
+    }
+    fun generateSymKey(){
+        val keygen = KeyGenerator.getInstance("AES")
+        keygen.init(256)
+        val key: SecretKey = keygen.generateKey()
+        return key
+    }
+
+
+
+
+
+    fun encryptKey(symmetricalKey: SecretKey, publicKey: PublicKey): String {
+        val encodedKey = Base64.encode(symmetricalKey.encoded, DEFAULT)
+        val cipher = Cipher.getInstance("RSA/EBC/PKCS1Padding")
+        cipher.init(Cipher.ENCRYPT_MODE, symmetricalKey)
+        val ciphertext: ByteArray = cipher.doFinal(encodedKey)
+        localRsaIv = cipher.iv
+        val ciphertextString = ciphertext.toString()
+        return ciphertextString
+    }
+
+    fun encryptMessage(messageText: String): String {
+
+
+        val plaintext: ByteArray = messageText.toByteArray()
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
+        cipher.init(Cipher.ENCRYPT_MODE, symmetricalKey)
+        val ciphertext: ByteArray = cipher.doFinal(plaintext)
+        localIv = cipher.iv
+        val ciphertextString = ciphertext.toString()
+        return ciphertextString
+    }
+
     fun sendMessage(@Suppress("UNUSED_PARAMETER") view: View) {
         val wifiManager =
             applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
@@ -131,13 +185,33 @@ class MainActivity : AppCompatActivity() {
             } else {
                 val queue = Volley.newRequestQueue(this@MainActivity)
                 val ip = getIP()
-                val messageText = URLEncoder.encode(getMessageText(),  "UTF-8")
+                val messageText = URLEncoder.encode(encryptMessage(getMessageText()!!),  "UTF-8")
+
                 val stringRequest = StringRequest(
-                    Request.Method.POST, "http://$ip:63342/?message=$messageText",
+                    Request.Method.POST, "http://$ip:63342/?newMessage=true",
                     Response.Listener { response ->
                         runOnUiThread {
-                            Toast.makeText(this@MainActivity, response, Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, "public key received", Toast.LENGTH_SHORT).show()
                         }
+                        val stringRequest = StringRequest(
+                            Request.Method.POST, "http://$ip:63342/?message=$messageText&key=${encryptKey(symmetricalKey, response)}&symmIv=$localIv&asymmIv=$localRsaIv",
+                            Response.Listener { response ->
+                                runOnUiThread {
+                                    Toast.makeText(this@MainActivity, "public key received", Toast.LENGTH_SHORT).show()
+                                }
+
+                            },
+                            Response.ErrorListener { error ->
+                                runOnUiThread(
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "exit error$error",
+                                        Toast.LENGTH_SHORT
+                                    )::show
+                                )
+                            })
+                        queue.add(stringRequest)
+
                     },
                     Response.ErrorListener { error ->
                         runOnUiThread(
