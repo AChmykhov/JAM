@@ -20,10 +20,10 @@ import java.io.IOException
 import java.net.URLEncoder
 import java.security.KeyPair
 import java.security.KeyPairGenerator
-import java.security.PublicKey
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import javax.crypto.spec.SecretKeySpec
 
 
 class MainActivity : AppCompatActivity() {
@@ -65,14 +65,14 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 Toast.makeText(this@MainActivity, params.toString(), Toast.LENGTH_SHORT).show()
             }
-            if (params.containsKey("message")) {
+            if (params.containsKey("message")) {                                                      //Tyk!
                 params["message"]?.get(0)?.let {
                     runOnUiThread {
                         Toast.makeText(this@MainActivity, it, Toast.LENGTH_SHORT).show()
                     }
                 }
                 return newFixedLengthResponse("200 OK")
-            }else if (params.containsKey("newMessage")) {
+            } else if (params.containsKey("newMessage")) {
                 runOnUiThread {
                     Toast.makeText(
                         this@MainActivity,
@@ -80,22 +80,24 @@ class MainActivity : AppCompatActivity() {
                         Toast.LENGTH_SHORT
                     ).show()
                 }
-                val publKey = keyPair?.private?.encoded
+                val publKey = this@MainActivity.keyPair?.private?.encoded
                 val publicKeyText = Base64.encodeToString(publKey, DEFAULT)
 
                 return newFixedLengthResponse(publicKeyText)
             } else
-               return newFixedLengthResponse("200 OK")
+                return newFixedLengthResponse("200 OK")
         }
     }
 
     fun runServer() {
         server = receiverServer()
     }
+
     fun getLocalIpAddress(): String? {
         try {
 
-            val wifiManager: WifiManager = getApplicationContext().getSystemService(Context.WIFI_SERVICE) as WifiManager
+            val wifiManager: WifiManager =
+                getApplicationContext().getSystemService(Context.WIFI_SERVICE) as WifiManager
             return ipToString(wifiManager.connectionInfo.ipAddress)
         } catch (ex: Exception) {
             Log.e("IP Address", ex.toString())
@@ -111,8 +113,6 @@ class MainActivity : AppCompatActivity() {
                 (i shr 24 and 0xFF)
 
     }
-
-
 
 
     fun getIP(): String? {
@@ -137,24 +137,22 @@ class MainActivity : AppCompatActivity() {
 
         return keyPair
     }
-    fun generateSymKey(){
+
+    fun generateSymKey(): SecretKey? {
         val keygen = KeyGenerator.getInstance("AES")
         keygen.init(256)
-        val key: SecretKey = keygen.generateKey()
+        val key = keygen.generateKey()
         return key
     }
 
 
-
-
-
-    fun encryptKey(symmetricalKey: SecretKey, publicKey: PublicKey): String {
-        val encodedKey = Base64.encode(symmetricalKey.encoded, DEFAULT)
+    fun encryptKey(symmetricalKey: ByteArray?, publicKey: String?): String {
+        val decodedPublKey = SecretKeySpec(Base64.decode(publicKey, DEFAULT), "RSA")
         val cipher = Cipher.getInstance("RSA/EBC/PKCS1Padding")
-        cipher.init(Cipher.ENCRYPT_MODE, symmetricalKey)
-        val ciphertext: ByteArray = cipher.doFinal(encodedKey)
+        cipher.init(Cipher.ENCRYPT_MODE, decodedPublKey)
+        val ciphertext: ByteArray = cipher.doFinal(symmetricalKey)
         localRsaIv = cipher.iv
-        val ciphertextString = ciphertext.toString()
+        val ciphertextString = Base64.encodeToString(ciphertext, DEFAULT)
         return ciphertextString
     }
 
@@ -185,19 +183,31 @@ class MainActivity : AppCompatActivity() {
             } else {
                 val queue = Volley.newRequestQueue(this@MainActivity)
                 val ip = getIP()
-                val messageText = URLEncoder.encode(encryptMessage(getMessageText()!!),  "UTF-8")
+                val messageText = URLEncoder.encode(encryptMessage(getMessageText()!!), "UTF-8")
 
                 val stringRequest = StringRequest(
                     Request.Method.POST, "http://$ip:63342/?newMessage=true",
                     Response.Listener { response ->
                         runOnUiThread {
-                            Toast.makeText(this@MainActivity, "public key received", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                this@MainActivity,
+                                "public key received",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                         val stringRequest = StringRequest(
-                            Request.Method.POST, "http://$ip:63342/?message=$messageText&key=${encryptKey(symmetricalKey, response)}&symmIv=$localIv&asymmIv=$localRsaIv",
+                            Request.Method.POST,
+                            "http://$ip:63342/?message=$messageText&key=${encryptKey(
+                                symmetricalKey!!.getEncoded(),
+                                response
+                            )}&symmIv=$localIv&asymmIv=$localRsaIv",
                             Response.Listener { response ->
                                 runOnUiThread {
-                                    Toast.makeText(this@MainActivity, "public key received", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "Message sended with code $response",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
 
                             },
