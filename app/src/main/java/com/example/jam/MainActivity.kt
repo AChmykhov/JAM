@@ -17,6 +17,7 @@ import com.android.volley.toolbox.Volley
 import com.google.android.material.textfield.TextInputEditText
 import fi.iki.elonen.NanoHTTPD
 import java.io.IOException
+import java.net.URLDecoder
 import java.net.URLEncoder
 import java.security.KeyPair
 import java.security.KeyPairGenerator
@@ -27,7 +28,7 @@ import javax.crypto.spec.SecretKeySpec
 
 
 class MainActivity : AppCompatActivity() {
-    lateinit var server: receiverServer
+    lateinit var server: ReceiverServer
     var keyPair = generateKeys()
     var symmetricalKey = generateSymKey()
     var localIv: ByteArray? = null
@@ -41,7 +42,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.myIP).text = getLocalIpAddress().toString()
     }
 
-    inner class receiverServer @Throws(IOException::class) constructor() : NanoHTTPD(63342) {
+    inner class ReceiverServer @Throws(IOException::class) constructor() : NanoHTTPD(63342) {
 
         init {
             start(SOCKET_READ_TIMEOUT, false)
@@ -65,39 +66,49 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 Toast.makeText(this@MainActivity, params.toString(), Toast.LENGTH_SHORT).show()
             }
-            if (params.containsKey("message")) {                                                      //Tyk!
-                params["message"]?.get(0)?.let {
-                    runOnUiThread {
-                        Toast.makeText(this@MainActivity, it, Toast.LENGTH_SHORT).show()
-                    }
-                }
-                return newFixedLengthResponse("200 OK")
-            } else if (params.containsKey("newMessage")) {
-                runOnUiThread {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "newMessage signal received",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                val publKey = this@MainActivity.keyPair?.private?.encoded
-                val publicKeyText = Base64.encodeToString(publKey, DEFAULT)
+            when {
+                params.containsKey("message") -> {                                                      //Tyk!
+                    val message = Base64.decode(
+                        URLDecoder.decode(
+                            params["message"]?.get(0),
+                            "UTF-8"
+                        ), DEFAULT
+                    )
+                    val externalSymKey =Base64.decode(URLDecoder.decode(params["key"]?.get(0), "UTF-8"),
+                        DEFAULT
+                    )
+                    val externalIv = Base64.decode(URLDecoder.decode(params["symIv"]?.get(0), "UTF-8"), DEFAULT)
+                    val externalRsaIv = Base64.decode(URLDecoder.decode(params["asymIv"]?.get(0), "UTF-8"), DEFAULT)
 
-                return newFixedLengthResponse(publicKeyText)
-            } else
-                return newFixedLengthResponse("200 OK")
+                        return newFixedLengthResponse("200 OK")
+                }
+                params.containsKey("newMessage") -> {
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "newMessage signal received",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    val publKey = this@MainActivity.keyPair?.private?.encoded
+                    val publicKeyText = Base64.encodeToString(publKey, DEFAULT)
+
+                    return newFixedLengthResponse(URLEncoder.encode(publicKeyText, "UTF-8"))
+                }
+                else -> return newFixedLengthResponse("200 OK")
+            }
         }
     }
 
     fun runServer() {
-        server = receiverServer()
+        server = ReceiverServer()
     }
 
     fun getLocalIpAddress(): String? {
         try {
 
             val wifiManager: WifiManager =
-                getApplicationContext().getSystemService(Context.WIFI_SERVICE) as WifiManager
+                applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
             return ipToString(wifiManager.connectionInfo.ipAddress)
         } catch (ex: Exception) {
             Log.e("IP Address", ex.toString())
@@ -146,14 +157,12 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    fun encryptKey(symmetricalKey: ByteArray?, publicKey: String?): String {
-        val decodedPublKey = SecretKeySpec(Base64.decode(publicKey, DEFAULT), "RSA")
+    fun encryptKey(symmetricalKey: ByteArray?, publicKey: SecretKey): ByteArray {
         val cipher = Cipher.getInstance("RSA/EBC/PKCS1Padding")
-        cipher.init(Cipher.ENCRYPT_MODE, decodedPublKey)
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey)
         val ciphertext: ByteArray = cipher.doFinal(symmetricalKey)
         localRsaIv = cipher.iv
-        val ciphertextString = Base64.encodeToString(ciphertext, DEFAULT)
-        return ciphertextString
+        return ciphertext
     }
 
     fun encryptMessage(messageText: String): String {
@@ -164,7 +173,7 @@ class MainActivity : AppCompatActivity() {
         cipher.init(Cipher.ENCRYPT_MODE, symmetricalKey)
         val ciphertext: ByteArray = cipher.doFinal(plaintext)
         localIv = cipher.iv
-        val ciphertextString = ciphertext.toString()
+        val ciphertextString = Base64.encodeToString(ciphertext, DEFAULT)
         return ciphertextString
     }
 
@@ -197,10 +206,29 @@ class MainActivity : AppCompatActivity() {
                         }
                         val stringRequest = StringRequest(
                             Request.Method.POST,
-                            "http://$ip:63342/?message=$messageText&key=${encryptKey(
-                                symmetricalKey!!.getEncoded(),
-                                response
-                            )}&symmIv=$localIv&asymmIv=$localRsaIv",
+                            "http://$ip:63342/?message=$messageText&key=${URLEncoder.encode(
+                                Base64.encodeToString(
+                                    encryptKey(
+                                        symmetricalKey!!.encoded,
+                                        SecretKeySpec(
+                                            Base64.decode(
+                                                URLDecoder.decode(
+                                                    response,
+                                                    "UTF-8"
+                                                ), DEFAULT
+                                            ), "RSA"
+                                        )
+                                    ), DEFAULT
+                                ), "UTF-8"
+                            )}&symIv=${URLEncoder.encode(
+                                Base64.encodeToString(localIv, DEFAULT),
+                                "UTF-8"
+                            )}&asymIv=${URLEncoder.encode(
+                                Base64.encodeToString(
+                                    localRsaIv,
+                                    DEFAULT
+                                ), "UTF-8"
+                            )}",
                             Response.Listener { response ->
                                 runOnUiThread {
                                     Toast.makeText(
