@@ -94,13 +94,13 @@ class MainActivity : AppCompatActivity() {
                         return newFixedLengthResponse("200 OK")
                 }
                 params.containsKey("newMessage") -> {
-                    runOnUiThread {
-                        Toast.makeText(
-                            this@MainActivity,
-                            "newMessage signal received",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
+//                    runOnUiThread(
+//                        Toast.makeText(
+//                            this@MainActivity,
+//                            "newMessage signal received",
+//                            Toast.LENGTH_SHORT
+//                        )::show
+//                    )
                     val publKey = this@MainActivity.keyPair?.public?.encoded
                     val publicKeyText = Base64.encodeToString(publKey, DEFAULT)
 
