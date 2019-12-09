@@ -19,9 +19,8 @@ import fi.iki.elonen.NanoHTTPD
 import java.io.IOException
 import java.net.URLDecoder
 import java.net.URLEncoder
-import java.security.KeyPair
-import java.security.KeyPairGenerator
-import java.security.PrivateKey
+import java.security.*
+import java.security.spec.X509EncodedKeySpec
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -33,7 +32,7 @@ class MainActivity : AppCompatActivity() {
     var keyPair = generateKeys()
     var symmetricalKey = generateSymKey()
     var localIv: ByteArray? = null
-    var localRsaIv: ByteArray? = null
+//    var localRsaIv: ByteArray? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,19 +68,36 @@ class MainActivity : AppCompatActivity() {
 //            }
             when {
                 params.containsKey("message") -> {                                                      //Tyk!
-                    val encryptedMessage = Base64.decode(
-                        URLDecoder.decode(
+                    var externalMessage = ":(("
+                    try {
+                        val base64_encoded = URLDecoder.decode(
                             params["message"]?.get(0),
                             "UTF-8"
-                        ), DEFAULT
-                    )
-                    val encryptedExternalSymKey =Base64.decode(URLDecoder.decode(params["key"]?.get(0), "UTF-8"),
-                        DEFAULT
-                    )
-                    val externalIv = Base64.decode(URLDecoder.decode(params["symIv"]?.get(0), "UTF-8"), DEFAULT)
-                    val externalRsaIv = Base64.decode(URLDecoder.decode(params["asymIv"]?.get(0), "UTF-8"), DEFAULT)
-                    val externalSymKey = decryptKey(encryptedExternalSymKey, this@MainActivity.keyPair?.private)
-                    val externalMessage = decryptMessage(encryptedMessage, externalSymKey)
+                        )
+                        val encryptedMessage = Base64.decode(
+                            base64_encoded
+                            , DEFAULT
+                        )
+                        val encryptedExternalSymKey = Base64.decode(
+                            URLDecoder.decode(params["key"]?.get(0), "UTF-8"),
+                            DEFAULT
+                        )
+                        val externalIv =
+                            Base64.decode(
+                                URLDecoder.decode(params["symIv"]?.get(0), "UTF-8"),
+                                DEFAULT
+                            )
+//                    val externalRsaIv = Base64.decode(URLDecoder.decode(params["asymIv"]?.get(0), "UTF-8"), DEFAULT)
+                        val externalSymKey =
+                            decryptKey(encryptedExternalSymKey, this@MainActivity.keyPair?.private)
+                        externalMessage = decryptMessage(encryptedMessage, externalSymKey)
+                    }catch (e: java.lang.Exception){
+//                        runOnUiThread {
+//                            Toast.makeText(this@MainActivity, e.toString(), Toast.LENGTH_SHORT).show()
+//                        }
+//                        System.err.println(e.stackTrace)
+                        e.printStackTrace(System.err)
+                    }
 
                     runOnUiThread(
                         Toast.makeText(
@@ -91,7 +107,7 @@ class MainActivity : AppCompatActivity() {
                         )::show
                     )
 
-                        return newFixedLengthResponse("200 OK")
+                    return newFixedLengthResponse("200 OK")
                 }
                 params.containsKey("newMessage") -> {
 //                    runOnUiThread(
@@ -150,12 +166,16 @@ class MainActivity : AppCompatActivity() {
     fun generateKeys(): KeyPair? {
         var keyPair: KeyPair? = null
         try {
-            val keyGen = KeyPairGenerator.getInstance("RSA/NONE/PKCS1Padding")
+            val keyGen = KeyPairGenerator.getInstance("RSA")
             keyGen.initialize(1024)
             keyPair = keyGen.generateKeyPair()
         } catch (e: java.lang.Exception) {
+            runOnUiThread {
+                Toast.makeText(this@MainActivity, e.toString(), Toast.LENGTH_SHORT).show()
+            }
             println(e)
         }
+
 
         return keyPair
     }
@@ -168,11 +188,11 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    fun encryptKey(symmetricalKey: ByteArray?, publicKey: SecretKey): ByteArray {
-        val cipher = Cipher.getInstance("RSA/NONE/PKCS1Padding")
+    fun encryptKey(symmetricalKey: ByteArray?, publicKey: PublicKey): ByteArray {
+        val cipher = Cipher.getInstance("RSA")
         cipher.init(Cipher.ENCRYPT_MODE, publicKey)
         val ciphertext: ByteArray = cipher.doFinal(symmetricalKey)
-        localRsaIv = cipher.iv
+//        localRsaIv = cipher.iv
         return ciphertext
     }
 
@@ -188,14 +208,15 @@ class MainActivity : AppCompatActivity() {
         return ciphertextString
     }
 
-    fun decryptKey(encryptedSymmetricalKey: ByteArray?, publicKey: PrivateKey?): SecretKey{
-        val cipher = Cipher.getInstance("RSA/NONE/PKCS1Padding")
+    fun decryptKey(encryptedSymmetricalKey: ByteArray?, publicKey: PrivateKey?): SecretKey {
+        val cipher = Cipher.getInstance("RSA")
         cipher.init(Cipher.DECRYPT_MODE, publicKey)
         val plaintext: ByteArray = cipher.doFinal(encryptedSymmetricalKey)
         return SecretKeySpec(plaintext, "RSA")
 
     }
-    fun decryptMessage(ciphertext: ByteArray, key: SecretKey): String{
+
+    fun decryptMessage(ciphertext: ByteArray, key: SecretKey): String {
         val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
         cipher.init(Cipher.DECRYPT_MODE, key)
         val plaintext: ByteArray = cipher.doFinal(ciphertext)
@@ -229,30 +250,37 @@ class MainActivity : AppCompatActivity() {
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
-                        val stringRequest = StringRequest(
-                            Request.Method.POST,
-                            "http://$ip:63342/?message=$messageText&key=${URLEncoder.encode(
+                        var encryptedSymmetricalKey = "test"
+                        try {
+
+                            encryptedSymmetricalKey = URLEncoder.encode(
                                 Base64.encodeToString(
                                     encryptKey(
                                         symmetricalKey!!.encoded,
-                                        SecretKeySpec(
-                                            Base64.decode(
-                                                URLDecoder.decode(
-                                                    response,
-                                                    "UTF-8"
-                                                ), DEFAULT
-                                            ), "RSA"
+                                        KeyFactory.getInstance("RSA").generatePublic(
+                                            X509EncodedKeySpec(
+                                                Base64.decode(
+                                                    URLDecoder.decode(
+                                                        response,
+                                                        "UTF-8"
+                                                    ), DEFAULT
+                                                )
+                                            )
                                         )
                                     ), DEFAULT
                                 ), "UTF-8"
-                            )}&symIv=${URLEncoder.encode(
+                            )
+                        } catch (e: java.lang.Exception) {
+                            runOnUiThread {
+                                Toast.makeText(this@MainActivity, e.toString(), Toast.LENGTH_SHORT)
+                                    .show()
+                            }
+                        }
+                        val stringRequest1 = StringRequest(
+                            Request.Method.POST,
+                            "http://$ip:63342/?message=$messageText&key=$encryptedSymmetricalKey&symIv=${URLEncoder.encode(
                                 Base64.encodeToString(localIv, DEFAULT),
                                 "UTF-8"
-                            )}&asymIv=${URLEncoder.encode(
-                                Base64.encodeToString(
-                                    localRsaIv,
-                                    DEFAULT
-                                ), "UTF-8"
                             )}",
                             Response.Listener { secondResponse ->
                                 runOnUiThread {
@@ -273,7 +301,7 @@ class MainActivity : AppCompatActivity() {
                                     )::show
                                 )
                             })
-                        queue.add(stringRequest)
+                        queue.add(stringRequest1)
 
                     },
                     Response.ErrorListener { error ->
