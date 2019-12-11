@@ -70,23 +70,24 @@ class MainActivity : AppCompatActivity() {
                 params.containsKey("message") -> {                                                      //Tyk!
                     var externalMessage = ":(("
                     try {
-                        val base64_encoded = URLDecoder.decode(
+                        val encodedEncryptedMessage = URLDecoder.decode(
                             params["message"]?.get(0),
                             "UTF-8"
                         )
                         val encryptedMessage = Base64.decode(
-                            base64_encoded
+                            encodedEncryptedMessage
                             , DEFAULT
                         )
+                        val encodedExternalSymKey = URLDecoder.decode(params["key"]?.get(0), "UTF-8")
                         val encryptedExternalSymKey = Base64.decode(
-                            URLDecoder.decode(params["key"]?.get(0), "UTF-8"),
+                            encodedExternalSymKey,
                             DEFAULT
                         )
-                        val externalIv =
-                            Base64.decode(
-                                URLDecoder.decode(params["symIv"]?.get(0), "UTF-8"),
-                                DEFAULT
-                            )
+//                        val externalIv =
+//                            Base64.decode(
+//                                URLDecoder.decode(params["symIv"]?.get(0), "UTF-8"),
+//                                DEFAULT
+//                            )
 //                    val externalRsaIv = Base64.decode(URLDecoder.decode(params["asymIv"]?.get(0), "UTF-8"), DEFAULT)
                         val externalSymKey =
                             decryptKey(encryptedExternalSymKey, this@MainActivity.keyPair?.private)
