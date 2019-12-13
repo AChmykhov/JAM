@@ -4,7 +4,8 @@ import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.util.Base64
-import android.util.Base64.DEFAULT
+import android.util.Base64.URL_SAFE
+//import android.util.Base64.DEFAULT
 import android.util.Log
 import android.view.View
 import android.widget.TextView
@@ -74,21 +75,22 @@ class MainActivity : AppCompatActivity() {
                             params["message"]?.get(0),
                             "UTF-8"
                         )
+                        println(encodedEncryptedMessage)
                         val encryptedMessage = Base64.decode(
                             encodedEncryptedMessage
-                            , DEFAULT
+                            , URL_SAFE
                         )
                         val encodedExternalSymKey = URLDecoder.decode(params["key"]?.get(0), "UTF-8")
                         val encryptedExternalSymKey = Base64.decode(
                             encodedExternalSymKey,
-                            DEFAULT
+                            URL_SAFE
                         )
 //                        val externalIv =
 //                            Base64.decode(
 //                                URLDecoder.decode(params["symIv"]?.get(0), "UTF-8"),
-//                                DEFAULT
+//                                URL_SAFE
 //                            )
-//                    val externalRsaIv = Base64.decode(URLDecoder.decode(params["asymIv"]?.get(0), "UTF-8"), DEFAULT)
+//                    val externalRsaIv = Base64.decode(URLDecoder.decode(params["asymIv"]?.get(0), "UTF-8"), URL_SAFE)
                         val externalSymKey =
                             decryptKey(encryptedExternalSymKey, this@MainActivity.keyPair?.private)
                         externalMessage = decryptMessage(encryptedMessage, externalSymKey)
@@ -97,7 +99,7 @@ class MainActivity : AppCompatActivity() {
 //                            Toast.makeText(this@MainActivity, e.toString(), Toast.LENGTH_SHORT).show()
 //                        }
 //                        System.err.println(e.stackTrace)
-                        e.printStackTrace(System.err)
+                        e.printStackTrace()
                     }
 
                     runOnUiThread(
@@ -119,7 +121,7 @@ class MainActivity : AppCompatActivity() {
 //                        )::show
 //                    )
                     val publKey = this@MainActivity.keyPair?.public?.encoded
-                    val publicKeyText = Base64.encodeToString(publKey, DEFAULT)
+                    val publicKeyText = Base64.encodeToString(publKey, URL_SAFE)
 
                     return newFixedLengthResponse(URLEncoder.encode(publicKeyText, "UTF-8"))
                 }
@@ -205,7 +207,14 @@ class MainActivity : AppCompatActivity() {
         cipher.init(Cipher.ENCRYPT_MODE, symmetricalKey)
         val ciphertext: ByteArray = cipher.doFinal(plaintext)
         localIv = cipher.iv
-        val ciphertextString = Base64.encodeToString(ciphertext, DEFAULT)
+        val ciphertextString = Base64.encodeToString(ciphertext, URL_SAFE)
+        runOnUiThread {
+            Toast.makeText(
+                this@MainActivity,
+                ciphertextString,
+                Toast.LENGTH_SHORT
+            ).show()
+        }
         return ciphertextString
     }
 
@@ -240,7 +249,7 @@ class MainActivity : AppCompatActivity() {
                 val queue = Volley.newRequestQueue(this@MainActivity)
                 val ip = getIP()
                 val messageText = URLEncoder.encode(encryptMessage(getMessageText()!!), "UTF-8")
-
+                println(messageText)
                 val stringRequest = StringRequest(
                     Request.Method.POST, "http://$ip:63342/?newMessage=true",
                     Response.Listener { response ->
@@ -264,11 +273,11 @@ class MainActivity : AppCompatActivity() {
                                                     URLDecoder.decode(
                                                         response,
                                                         "UTF-8"
-                                                    ), DEFAULT
+                                                    ), URL_SAFE
                                                 )
                                             )
                                         )
-                                    ), DEFAULT
+                                    ), URL_SAFE
                                 ), "UTF-8"
                             )
                         } catch (e: java.lang.Exception) {
@@ -280,7 +289,7 @@ class MainActivity : AppCompatActivity() {
                         val stringRequest1 = StringRequest(
                             Request.Method.POST,
                             "http://$ip:63342/?message=$messageText&key=$encryptedSymmetricalKey&symIv=${URLEncoder.encode(
-                                Base64.encodeToString(localIv, DEFAULT),
+                                Base64.encodeToString(localIv, URL_SAFE),
                                 "UTF-8"
                             )}",
                             Response.Listener { secondResponse ->
