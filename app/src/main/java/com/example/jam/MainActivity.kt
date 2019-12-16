@@ -276,7 +276,6 @@ class MainActivity : AppCompatActivity() {
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
-                        var encryptedSymmetricalKey = "test"
                         try {
                             val resp_str = URLDecoder.decode(
                                 response,
@@ -301,7 +300,7 @@ class MainActivity : AppCompatActivity() {
                                     .show()
                             }
 
-                            encryptedSymmetricalKey = URLEncoder.encode(
+                            val encryptedSymmetricalKey = URLEncoder.encode(
                                 Base64.encodeToString(
                                     encryptKey(
                                         symmetricalKey!!.encoded,
@@ -318,39 +317,38 @@ class MainActivity : AppCompatActivity() {
                                     ), URL_SAFE
                                 ), "UTF-8"
                             )
+                            val stringRequest1 = StringRequest(
+                                Request.Method.POST,
+                                "http://$ip:63342/?message=$messageText&key=$encryptedSymmetricalKey&symIv=${URLEncoder.encode(
+                                    Base64.encodeToString(localIv, URL_SAFE),
+                                    "UTF-8"
+                                )}",
+                                Response.Listener { secondResponse ->
+                                    runOnUiThread {
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            "Message sended with code $secondResponse",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+
+                                },
+                                Response.ErrorListener { error ->
+                                    runOnUiThread(
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            "exit error$error",
+                                            Toast.LENGTH_SHORT
+                                        )::show
+                                    )
+                                })
+                            queue.add(stringRequest1)
                         } catch (e: java.lang.Exception) {
                             runOnUiThread {
                                 Toast.makeText(this@MainActivity, "exception in encrypting data: " + e.toString(), Toast.LENGTH_SHORT)
                                     .show()
                             }
                         }
-                        val stringRequest1 = StringRequest(
-                            Request.Method.POST,
-                            "http://$ip:63342/?message=$messageText&key=$encryptedSymmetricalKey&symIv=${URLEncoder.encode(
-                                Base64.encodeToString(localIv, URL_SAFE),
-                                "UTF-8"
-                            )}",
-                            Response.Listener { secondResponse ->
-                                runOnUiThread {
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "Message sended with code $secondResponse",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-
-                            },
-                            Response.ErrorListener { error ->
-                                runOnUiThread(
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "exit error$error",
-                                        Toast.LENGTH_SHORT
-                                    )::show
-                                )
-                            })
-                        queue.add(stringRequest1)
-
                     },
                     Response.ErrorListener { error ->
                         runOnUiThread(
