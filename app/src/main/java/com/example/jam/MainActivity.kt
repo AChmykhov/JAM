@@ -44,6 +44,24 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.myIP).text = getLocalIpAddress().toString()
     }
 
+    fun urlEncode(text: ByteArray): String {
+        val result = URLEncoder.encode(
+            Base64.encodeToString(text, URL_SAFE),
+            "UTF-8"
+        )
+        return result
+    }
+
+    fun urlDecode(text: String): ByteArray {
+        val result = Base64.decode(
+            URLDecoder.decode(
+                text,
+                "UTF-8"
+            ), URL_SAFE
+        )
+        return result
+    }
+
     inner class ReceiverServer @Throws(IOException::class) constructor() : NanoHTTPD(63342) {
 
         init {
@@ -71,27 +89,11 @@ class MainActivity : AppCompatActivity() {
             when {
                 params.containsKey("message") -> {                                                      //Tyk
                     try {
-                        val encodedEncryptedMessage = URLDecoder.decode(
-                            params["message"]?.get(0),
-                            "UTF-8"
-                        )
-//                        println(encodedEncryptedMessage)
-                        val encryptedMessage = Base64.decode(
-                            encodedEncryptedMessage
-                            , URL_SAFE
-                        )
-                        val encodedExternalSymKey =
-                            URLDecoder.decode(params["key"]?.get(0), "UTF-8")
-                        val encryptedExternalSymKey = Base64.decode(
-                            encodedExternalSymKey,
-                            URL_SAFE
-                        )
+                        val encryptedMessage = urlDecode(params["message"]?.get(0))
+                        val encryptedExternalSymKey = urlDecode(params["key"]?.get(0))
                         val externalIv =
                             IvParameterSpec(
-                                Base64.decode(
-                                    URLDecoder.decode(params["symIv"]?.get(0), "UTF-8"),
-                                    URL_SAFE
-                                )
+                                urlDecode(params["symIv"]?.get(0))
                             )
                         val externalSymKey =
                             decryptKey(
@@ -128,12 +130,7 @@ class MainActivity : AppCompatActivity() {
 //                        )::show
 //                    )
                     val publKey = this@MainActivity.keyPair?.public?.encoded
-//                    println("pubkey:" + publKey.toString())
-                    val publicKeyText = Base64.encodeToString(publKey, URL_SAFE)
-                    println("pubkey64:" + publicKeyText)
-                    println("pubkey:" + this@MainActivity.keyPair?.public)
-
-                    return newFixedLengthResponse(URLEncoder.encode(publicKeyText, "UTF-8"))
+                    return newFixedLengthResponse(urlEncode(publKey))
                 }
                 else -> return newFixedLengthResponse("200 OK")
             }
@@ -209,22 +206,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun encryptMessage(messageText: String): String {
-
         println("my message is " + messageText)
         val plaintext: ByteArray = messageText.toByteArray()
         val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
         cipher.init(Cipher.ENCRYPT_MODE, symmetricalKey)
         val ciphertext: ByteArray = cipher.doFinal(plaintext)
         localIv = cipher.iv
-        val ciphertextString = Base64.encodeToString(ciphertext, URL_SAFE)
-        runOnUiThread {
-            Toast.makeText(
-                this@MainActivity,
-                "cipher text string: " + ciphertextString,
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-        return ciphertextString
+        return ciphertext
     }
 
     fun decryptKey(
@@ -264,7 +252,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 val queue = Volley.newRequestQueue(this@MainActivity)
                 val ip = getIP()
-                val messageText = URLEncoder.encode(encryptMessage(getMessageText()!!), "UTF-8")
+                val messageText = urlEncode(encryptMessage(getMessageText()!!))
                 println(messageText)
                 val stringRequest = StringRequest(
                     Request.Method.POST, "http://$ip:63342/?newMessage=true",
@@ -277,52 +265,26 @@ class MainActivity : AppCompatActivity() {
                             ).show()
                         }
                         try {
-                            val resp_str = URLDecoder.decode(
-                                response,
-                                "UTF-8"
-                            )
-                            println("resp_str_64:" + resp_str)
-                            runOnUiThread {
-                                Toast.makeText(this@MainActivity, "There was println with resp64", Toast.LENGTH_SHORT)
-                                    .show()
-                            }
-
-                            val pubKeyTest = KeyFactory.getInstance("RSA").generatePublic(
+                            val pubKey = KeyFactory.getInstance("RSA").generatePublic(
                                 X509EncodedKeySpec(
-                                    Base64.decode(
-                                        resp_str, URL_SAFE
-                                    )
+                                    urlDecode(response)
                                 )
                             )
-                            println("pubkeyTest:" + pubKeyTest)
+                            println("pubKey:" + pubKey)
                             runOnUiThread {
-                                Toast.makeText(this@MainActivity, "println $pubKeyTest", Toast.LENGTH_SHORT)
+                                Toast.makeText(this@MainActivity, "println $pubKey", Toast.LENGTH_SHORT)
                                     .show()
                             }
 
-                            val encryptedSymmetricalKey = URLEncoder.encode(
-                                Base64.encodeToString(
-                                    encryptKey(
-                                        symmetricalKey!!.encoded,
-                                        KeyFactory.getInstance("RSA").generatePublic(
-                                            X509EncodedKeySpec(
-                                                Base64.decode(
-                                                    URLDecoder.decode(
-                                                        response,
-                                                        "UTF-8"
-                                                    ), URL_SAFE
-                                                )
-                                            )
-                                        )
-                                    ), URL_SAFE
-                                ), "UTF-8"
+                            val encryptedSymmetricalKey = urlEncode(
+                                encryptKey(
+                                    symmetricalKey!!.encoded,
+                                    pubKey
+                                )
                             )
                             val stringRequest1 = StringRequest(
                                 Request.Method.POST,
-                                "http://$ip:63342/?message=$messageText&key=$encryptedSymmetricalKey&symIv=${URLEncoder.encode(
-                                    Base64.encodeToString(localIv, URL_SAFE),
-                                    "UTF-8"
-                                )}",
+                                "http://$ip:63342/?message=$messageText&key=$encryptedSymmetricalKey&symIv=${urlEncode(localIv)}",
                                 Response.Listener { secondResponse ->
                                     runOnUiThread {
                                         Toast.makeText(
