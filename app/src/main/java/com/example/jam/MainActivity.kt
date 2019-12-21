@@ -44,22 +44,44 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.myIP).text = getLocalIpAddress().toString()
     }
 
-    fun urlEncode(text: ByteArray): String {
-        val result = URLEncoder.encode(
-            Base64.encodeToString(text, URL_SAFE),
-            "UTF-8"
-        )
-        return result
+    fun urlEncode(text: ByteArray?): String {
+        if (text == null) {
+            runOnUiThread(
+                Toast.makeText(
+                    this@MainActivity,
+                    "ByteArray for url encoding is NULL",
+                    Toast.LENGTH_SHORT
+                )::show
+            )
+            return ""
+        } else {
+            val result = URLEncoder.encode(
+                Base64.encodeToString(text, URL_SAFE),
+                "UTF-8"
+            )
+            return result
+        }
     }
 
-    fun urlDecode(text: String): ByteArray {
-        val result = Base64.decode(
-            URLDecoder.decode(
-                text,
-                "UTF-8"
-            ), URL_SAFE
-        )
-        return result
+    fun urlDecode(text: String?): ByteArray? {
+        if (text == null) {
+            runOnUiThread(
+                Toast.makeText(
+                    this@MainActivity,
+                    "ByteArray for url encoding is NULL",
+                    Toast.LENGTH_SHORT
+                )::show
+            )
+            return null
+        } else {
+            val result = Base64.decode(
+                URLDecoder.decode(
+                    text,
+                    "UTF-8"
+                ), URL_SAFE
+            )
+            return result
+        }
     }
 
     inner class ReceiverServer @Throws(IOException::class) constructor() : NanoHTTPD(63342) {
@@ -117,7 +139,7 @@ class MainActivity : AppCompatActivity() {
 //                            Toast.LENGTH_SHORT
 //                        )::show
 //                    )
-                    println("message is "+externalMessage)
+                    println("message is " + externalMessage)
 
                     return newFixedLengthResponse("200 OK")
                 }
@@ -181,7 +203,11 @@ class MainActivity : AppCompatActivity() {
             keyPair = keyGen.generateKeyPair()
         } catch (e: java.lang.Exception) {
             runOnUiThread {
-                Toast.makeText(this@MainActivity, "Hi, there is exception with RSA keys: " + e.toString(), Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this@MainActivity,
+                    "Hi, there is exception with RSA keys: " + e.toString(),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
             println(e)
         }
@@ -205,7 +231,7 @@ class MainActivity : AppCompatActivity() {
         return ciphertext
     }
 
-    fun encryptMessage(messageText: String): String {
+    fun encryptMessage(messageText: String): ByteArray {
         println("my message is " + messageText)
         val plaintext: ByteArray = messageText.toByteArray()
         val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
@@ -227,14 +253,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun decryptMessage(
-        ciphertext: ByteArray,
+        ciphertext: ByteArray?,
         key: SecretKey,
         externalIvParameterSpec: IvParameterSpec
     ): String {
-        val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
-        cipher.init(Cipher.DECRYPT_MODE, key, externalIvParameterSpec)
-        val plaintext: ByteArray = cipher.doFinal(ciphertext)
-        return plaintext.toString()
+        if (ciphertext == null) {
+            runOnUiThread(
+                Toast.makeText(
+                    this@MainActivity,
+                    "ByteArray for url encoding is NULL",
+                    Toast.LENGTH_SHORT
+                )::show
+            )
+            return ""
+        } else {
+            val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
+            cipher.init(Cipher.DECRYPT_MODE, key, externalIvParameterSpec)
+            val plaintext: ByteArray = cipher.doFinal(ciphertext)
+            return plaintext.toString()
+        }
     }
 
     fun sendMessage(@Suppress("UNUSED_PARAMETER") view: View) {
@@ -272,7 +309,11 @@ class MainActivity : AppCompatActivity() {
                             )
                             println("pubKey:" + pubKey)
                             runOnUiThread {
-                                Toast.makeText(this@MainActivity, "println $pubKey", Toast.LENGTH_SHORT)
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "println $pubKey",
+                                    Toast.LENGTH_SHORT
+                                )
                                     .show()
                             }
 
@@ -284,7 +325,9 @@ class MainActivity : AppCompatActivity() {
                             )
                             val stringRequest1 = StringRequest(
                                 Request.Method.POST,
-                                "http://$ip:63342/?message=$messageText&key=$encryptedSymmetricalKey&symIv=${urlEncode(localIv)}",
+                                "http://$ip:63342/?message=$messageText&key=$encryptedSymmetricalKey&symIv=${urlEncode(
+                                    localIv
+                                )}",
                                 Response.Listener { secondResponse ->
                                     runOnUiThread {
                                         Toast.makeText(
@@ -307,7 +350,11 @@ class MainActivity : AppCompatActivity() {
                             queue.add(stringRequest1)
                         } catch (e: java.lang.Exception) {
                             runOnUiThread {
-                                Toast.makeText(this@MainActivity, "exception in encrypting data: " + e.toString(), Toast.LENGTH_SHORT)
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "exception in encrypting data: " + e.toString(),
+                                    Toast.LENGTH_SHORT
+                                )
                                     .show()
                             }
                         }
