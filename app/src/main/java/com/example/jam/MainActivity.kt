@@ -1,11 +1,11 @@
 package com.example.jam
 
+//import android.util.Base64.DEFAULT
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.util.Base64
 import android.util.Base64.URL_SAFE
-//import android.util.Base64.DEFAULT
 import android.util.Log
 import android.view.View
 import android.widget.TextView
@@ -224,20 +224,42 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    fun encryptKey(symmetricalKey: ByteArray?, publicKey: PublicKey): ByteArray {
+    fun encryptKey(symmetricalKey: ByteArray?, publicKey: PublicKey): ByteArray? {
+        if (symmetricalKey == null) {
+            runOnUiThread(
+                Toast.makeText(
+                    this@MainActivity,
+                    "ByteArray for url encoding is NULL",
+                    Toast.LENGTH_SHORT
+                )::show
+            )
+            return null
+        }
         val cipher = Cipher.getInstance("RSA")
         cipher.init(Cipher.ENCRYPT_MODE, publicKey)
         val ciphertext: ByteArray = cipher.doFinal(symmetricalKey)
         return ciphertext
     }
 
-    fun encryptMessage(messageText: String): ByteArray {
+    fun encryptMessage(messageText: String?): ByteArray? {
+        if (messageText == null) {
+            runOnUiThread(
+                Toast.makeText(
+                    this@MainActivity,
+                    "ByteArray for url encoding is NULL",
+                    Toast.LENGTH_SHORT
+                )::show
+            )
+            return null
+        }
         println("my message is " + messageText)
         val plaintext: ByteArray = messageText.toByteArray()
         val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
         cipher.init(Cipher.ENCRYPT_MODE, symmetricalKey)
-        val ciphertext: ByteArray = cipher.doFinal(plaintext)
         localIv = cipher.iv
+        println("iv before is " + urlEncode(cipher.iv))
+        val ciphertext: ByteArray = cipher.doFinal(plaintext)
+        println("iv after is " + urlEncode(cipher.iv))
         return ciphertext
     }
 
@@ -289,7 +311,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 val queue = Volley.newRequestQueue(this@MainActivity)
                 val ip = getIP()
-                val messageText = urlEncode(encryptMessage(getMessageText()!!))
+                val messageText = urlEncode(encryptMessage(getMessageText()))
                 println(messageText)
                 val stringRequest = StringRequest(
                     Request.Method.POST, "http://$ip:63342/?newMessage=true",
@@ -299,7 +321,7 @@ class MainActivity : AppCompatActivity() {
                                 this@MainActivity,
                                 "public key received",
                                 Toast.LENGTH_SHORT
-                            ).show()
+                            )::show
                         }
                         try {
                             val pubKey = KeyFactory.getInstance("RSA").generatePublic(
@@ -363,7 +385,7 @@ class MainActivity : AppCompatActivity() {
                         runOnUiThread(
                             Toast.makeText(
                                 this@MainActivity,
-                                "exit error numer 2 $error",
+                                "exit error number 2 $error",
                                 Toast.LENGTH_SHORT
                             )::show
                         )
