@@ -12,6 +12,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.android.volley.Request
+import com.android.volley.RequestQueue
 import com.android.volley.Response
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
@@ -185,7 +186,7 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    fun getIP(): String? {
+    fun getIP(): String {
         val dataIP = findViewById<TextInputEditText>(R.id.ipInput)
         return dataIP.text.toString()
     }
@@ -296,23 +297,39 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun sendMessage(@Suppress("UNUSED_PARAMETER") view: View) {
-        val wifiManager =
-            applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        if (getIP() == "") {
-            Toast.makeText(this, "No IP address entered", Toast.LENGTH_LONG).show()
-            return
-        }
 
-        if (!(wifiManager.isWifiEnabled)) {
-            Toast.makeText(
-                this,
-                "No connection to Wi-Fi network",
-                Toast.LENGTH_LONG
-            ).show()
-            return
-        }
+    fun encodeAndSend(messageText: String, queue: RequestQueue, pubKey: PublicKey, ip: String) {
+        val encryptedSymmetricalKey = urlEncode(
+            encryptKey(
+                symmetricalKey!!.encoded,
+                pubKey
+            )
+        )
+        val stringRequest = StringRequest(
+            Request.Method.POST,
+            "http://$ip:63342/?message=$messageText&key=$encryptedSymmetricalKey&symIv=${urlEncode(localIv)}",
+            Response.Listener { secondResponse ->
+                runOnUiThread {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Message sended with code $secondResponse",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            },
+            Response.ErrorListener { error ->
+                runOnUiThread(
+                    Toast.makeText(
+                        this@MainActivity,
+                        "exit error$error",
+                        Toast.LENGTH_SHORT
+                    )::show
+                )
+            })
+        queue.add(stringRequest)
+    }
 
+    fun sendMessageInternal() {
         val queue = Volley.newRequestQueue(this@MainActivity)
         val ip = getIP()
         val messageText = urlEncode(encryptMessage(getMessageText()))
@@ -342,46 +359,14 @@ class MainActivity : AppCompatActivity() {
                         )
                             .show()
                     }
-
-                    val encryptedSymmetricalKey = urlEncode(
-                        encryptKey(
-                            symmetricalKey!!.encoded,
-                            pubKey
-                        )
-                    )
-                    val stringRequest1 = StringRequest(
-                        Request.Method.POST,
-                        "http://$ip:63342/?message=$messageText&key=$encryptedSymmetricalKey&symIv=${urlEncode(
-                            localIv
-                        )}",
-                        Response.Listener { secondResponse ->
-                            runOnUiThread {
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "Message sended with code $secondResponse",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-
-                        },
-                        Response.ErrorListener { error ->
-                            runOnUiThread(
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "exit error$error",
-                                    Toast.LENGTH_SHORT
-                                )::show
-                            )
-                        })
-                    queue.add(stringRequest1)
+                    encodeAndSend(messageText, queue, pubKey, ip)
                 } catch (e: java.lang.Exception) {
                     runOnUiThread {
                         Toast.makeText(
                             this@MainActivity,
                             "exception in encrypting data: " + e.toString(),
                             Toast.LENGTH_SHORT
-                        )
-                            .show()
+                        ).show()
                     }
                 }
             },
@@ -395,6 +380,25 @@ class MainActivity : AppCompatActivity() {
                 )
             })
         queue.add(stringRequest)
+    }
+
+    fun sendMessage(@Suppress("UNUSED_PARAMETER") view: View) {
+        val wifiManager =
+            applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        if (getIP() == "") {
+            Toast.makeText(this, "No IP address entered", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        if (!(wifiManager.isWifiEnabled)) {
+            Toast.makeText(
+                this,
+                "No connection to Wi-Fi network",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+        sendMessageInternal()
     }
 
     override fun onBackPressed() {
