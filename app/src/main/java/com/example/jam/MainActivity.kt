@@ -301,98 +301,100 @@ class MainActivity : AppCompatActivity() {
             applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         if (getIP() == "") {
             Toast.makeText(this, "No IP address entered", Toast.LENGTH_LONG).show()
-        } else {
-            if (!(wifiManager.isWifiEnabled)) {
-                Toast.makeText(
-                    this,
-                    "No connection to Wi-Fi network",
-                    Toast.LENGTH_LONG
-                ).show()
-            } else {
-                val queue = Volley.newRequestQueue(this@MainActivity)
-                val ip = getIP()
-                val messageText = urlEncode(encryptMessage(getMessageText()))
-                println(messageText)
-                val stringRequest = StringRequest(
-                    Request.Method.POST, "http://$ip:63342/?newMessage=true",
-                    Response.Listener { response ->
-                        runOnUiThread {
-                            Toast.makeText(
-                                this@MainActivity,
-                                "public key received",
-                                Toast.LENGTH_SHORT
-                            )::show
-                        }
-                        try {
-                            val pubKey = KeyFactory.getInstance("RSA").generatePublic(
-                                X509EncodedKeySpec(
-                                    urlDecode(response)
-                                )
-                            )
-                            println("pubKey:" + pubKey)
-                            runOnUiThread {
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "println $pubKey",
-                                    Toast.LENGTH_SHORT
-                                )
-                                    .show()
-                            }
-
-                            val encryptedSymmetricalKey = urlEncode(
-                                encryptKey(
-                                    symmetricalKey!!.encoded,
-                                    pubKey
-                                )
-                            )
-                            val stringRequest1 = StringRequest(
-                                Request.Method.POST,
-                                "http://$ip:63342/?message=$messageText&key=$encryptedSymmetricalKey&symIv=${urlEncode(
-                                    localIv
-                                )}",
-                                Response.Listener { secondResponse ->
-                                    runOnUiThread {
-                                        Toast.makeText(
-                                            this@MainActivity,
-                                            "Message sended with code $secondResponse",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-
-                                },
-                                Response.ErrorListener { error ->
-                                    runOnUiThread(
-                                        Toast.makeText(
-                                            this@MainActivity,
-                                            "exit error$error",
-                                            Toast.LENGTH_SHORT
-                                        )::show
-                                    )
-                                })
-                            queue.add(stringRequest1)
-                        } catch (e: java.lang.Exception) {
-                            runOnUiThread {
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "exception in encrypting data: " + e.toString(),
-                                    Toast.LENGTH_SHORT
-                                )
-                                    .show()
-                            }
-                        }
-                    },
-                    Response.ErrorListener { error ->
-                        runOnUiThread(
-                            Toast.makeText(
-                                this@MainActivity,
-                                "exit error number 2 $error",
-                                Toast.LENGTH_SHORT
-                            )::show
-                        )
-                    })
-                queue.add(stringRequest)
-            }
+            return
         }
+
+        if (!(wifiManager.isWifiEnabled)) {
+            Toast.makeText(
+                this,
+                "No connection to Wi-Fi network",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+
+        val queue = Volley.newRequestQueue(this@MainActivity)
+        val ip = getIP()
+        val messageText = urlEncode(encryptMessage(getMessageText()))
+        println(messageText)
+        val stringRequest = StringRequest(
+            Request.Method.POST, "http://$ip:63342/?newMessage=true",
+            Response.Listener { response ->
+                runOnUiThread {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "public key received",
+                        Toast.LENGTH_SHORT
+                    )::show
+                }
+                try {
+                    val pubKey = KeyFactory.getInstance("RSA").generatePublic(
+                        X509EncodedKeySpec(
+                            urlDecode(response)
+                        )
+                    )
+                    println("pubKey:" + pubKey)
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "println $pubKey",
+                            Toast.LENGTH_SHORT
+                        )
+                            .show()
+                    }
+
+                    val encryptedSymmetricalKey = urlEncode(
+                        encryptKey(
+                            symmetricalKey!!.encoded,
+                            pubKey
+                        )
+                    )
+                    val stringRequest1 = StringRequest(
+                        Request.Method.POST,
+                        "http://$ip:63342/?message=$messageText&key=$encryptedSymmetricalKey&symIv=${urlEncode(
+                            localIv
+                        )}",
+                        Response.Listener { secondResponse ->
+                            runOnUiThread {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Message sended with code $secondResponse",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+
+                        },
+                        Response.ErrorListener { error ->
+                            runOnUiThread(
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "exit error$error",
+                                    Toast.LENGTH_SHORT
+                                )::show
+                            )
+                        })
+                    queue.add(stringRequest1)
+                } catch (e: java.lang.Exception) {
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "exception in encrypting data: " + e.toString(),
+                            Toast.LENGTH_SHORT
+                        )
+                            .show()
+                    }
+                }
+            },
+            Response.ErrorListener { error ->
+                runOnUiThread(
+                    Toast.makeText(
+                        this@MainActivity,
+                        "exit error number 2 $error",
+                        Toast.LENGTH_SHORT
+                    )::show
+                )
+            })
+        queue.add(stringRequest)
     }
 
     override fun onBackPressed() {
