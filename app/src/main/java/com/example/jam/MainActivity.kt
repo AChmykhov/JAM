@@ -37,7 +37,6 @@ class MainActivity : AppCompatActivity() {
     var localIv: ByteArray? = null
     var externalMessage = ":(("
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -45,15 +44,34 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.myIP).text = getLocalIpAddress().toString()
     }
 
+    fun showMessage(msg: String) {
+        runOnUiThread(
+            Toast.makeText(
+                this@MainActivity,
+                msg,
+                Toast.LENGTH_SHORT
+            )::show
+        )
+        System.err.println(msg)
+        Log.e("Toast", msg)
+    }
+
+    fun showErrorMessage(e: java.lang.Exception, msg: String = "") {
+        runOnUiThread(
+            Toast.makeText(
+                this@MainActivity,
+                "$msg: $e",
+                Toast.LENGTH_SHORT
+            )::show
+        )
+        e.printStackTrace()
+        Log.e("Exception", e.toString())
+    }
+
+
     fun urlEncode(text: ByteArray?): String {
         if (text == null) {
-            runOnUiThread(
-                Toast.makeText(
-                    this@MainActivity,
-                    "ByteArray for url encoding is NULL",
-                    Toast.LENGTH_SHORT
-                )::show
-            )
+            showMessage("ByteArray for url encoding is NULL")
             return ""
         } else {
             val result = URLEncoder.encode(
@@ -66,13 +84,7 @@ class MainActivity : AppCompatActivity() {
 
     fun urlDecode(text: String?): ByteArray? {
         if (text == null) {
-            runOnUiThread(
-                Toast.makeText(
-                    this@MainActivity,
-                    "ByteArray for url encoding is NULL",
-                    Toast.LENGTH_SHORT
-                )::show
-            )
+            showMessage("ByteArray for url encoding is NULL")
             return null
         } else {
             val result = Base64.decode(
@@ -99,16 +111,7 @@ class MainActivity : AppCompatActivity() {
 
         override fun serve(session: IHTTPSession): Response {
             val params = session.parameters
-//            runOnUiThread {
-//                Toast.makeText(
-//                    this@MainActivity,
-//                    "Message received",
-//                    Toast.LENGTH_SHORT
-//                ).show()
-//            }
-//            runOnUiThread {
-//                Toast.makeText(this@MainActivity, params.toString(), Toast.LENGTH_SHORT).show()
-//            }
+//            showMessage("Message received. Params: $params")
             when {
                 params.containsKey("message") -> {                                                      //Tyk
                     try {
@@ -123,35 +126,17 @@ class MainActivity : AppCompatActivity() {
                                 encryptedExternalSymKey,
                                 this@MainActivity.keyPair?.private
                             )
-                        externalMessage =
-                            decryptMessage(encryptedMessage, externalSymKey, externalIv)
-                    } catch (e: java.lang.Exception) {
-//                        runOnUiThread {
-//                            Toast.makeText(this@MainActivity, e.toString(), Toast.LENGTH_SHORT).show()
-//                        }
-//                        System.err.println(e.stackTrace)
-                        e.printStackTrace()
-                    }
+                        externalMessage = decryptMessage(encryptedMessage, externalSymKey, externalIv)
 
-//                    runOnUiThread(
-//                        Toast.makeText(
-//                            this@MainActivity,
-//                            externalMessage,
-//                            Toast.LENGTH_SHORT
-//                        )::show
-//                    )
-                    println("message is " + externalMessage)
+                        showMessage("message is " + externalMessage)
+                    } catch (e: java.lang.Exception) {
+                        showErrorMessage(e, "message obtaining failed")
+                    }
 
                     return newFixedLengthResponse("200 OK")
                 }
                 params.containsKey("newMessage") -> {
-//                    runOnUiThread(
-//                        Toast.makeText(
-//                            this@MainActivity,
-//                            "newMessage signal received",
-//                            Toast.LENGTH_SHORT
-//                        )::show
-//                    )
+                    showMessage("newMessage signal received")
                     val publKey = this@MainActivity.keyPair?.public?.encoded
                     return newFixedLengthResponse(urlEncode(publKey))
                 }
@@ -203,14 +188,7 @@ class MainActivity : AppCompatActivity() {
             keyGen.initialize(1024)
             keyPair = keyGen.generateKeyPair()
         } catch (e: java.lang.Exception) {
-            runOnUiThread {
-                Toast.makeText(
-                    this@MainActivity,
-                    "Hi, there is exception with RSA keys: " + e.toString(),
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-            println(e)
+            showErrorMessage(e, "Hi, there is exception with RSA keys: ")
         }
 
 
@@ -227,13 +205,7 @@ class MainActivity : AppCompatActivity() {
 
     fun encryptKey(symmetricalKey: ByteArray?, publicKey: PublicKey): ByteArray? {
         if (symmetricalKey == null) {
-            runOnUiThread(
-                Toast.makeText(
-                    this@MainActivity,
-                    "ByteArray for url encoding is NULL",
-                    Toast.LENGTH_SHORT
-                )::show
-            )
+            showMessage("ByteArray for url encoding is NULL")
             return null
         }
         val cipher = Cipher.getInstance("RSA")
@@ -244,13 +216,7 @@ class MainActivity : AppCompatActivity() {
 
     fun encryptMessage(messageText: String?): ByteArray? {
         if (messageText == null) {
-            runOnUiThread(
-                Toast.makeText(
-                    this@MainActivity,
-                    "ByteArray for url encoding is NULL",
-                    Toast.LENGTH_SHORT
-                )::show
-            )
+            showMessage("ByteArray for url encoding is NULL")
             return null
         }
         println("my message is " + messageText)
@@ -281,13 +247,7 @@ class MainActivity : AppCompatActivity() {
         externalIvParameterSpec: IvParameterSpec
     ): String {
         if (ciphertext == null) {
-            runOnUiThread(
-                Toast.makeText(
-                    this@MainActivity,
-                    "ByteArray for url encoding is NULL",
-                    Toast.LENGTH_SHORT
-                )::show
-            )
+            showMessage("ByteArray for url encoding is NULL")
             return ""
         } else {
             val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
@@ -309,22 +269,10 @@ class MainActivity : AppCompatActivity() {
             Request.Method.POST,
             "http://$ip:63342/?message=$messageText&key=$encryptedSymmetricalKey&symIv=${urlEncode(localIv)}",
             Response.Listener { secondResponse ->
-                runOnUiThread {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Message sended with code $secondResponse",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+                showMessage("Message sended with code $secondResponse")
             },
             Response.ErrorListener { error ->
-                runOnUiThread(
-                    Toast.makeText(
-                        this@MainActivity,
-                        "exit error$error",
-                        Toast.LENGTH_SHORT
-                    )::show
-                )
+                showErrorMessage(error, "exit error")
             })
         queue.add(stringRequest)
     }
@@ -337,47 +285,21 @@ class MainActivity : AppCompatActivity() {
         val stringRequest = StringRequest(
             Request.Method.POST, "http://$ip:63342/?newMessage=true",
             Response.Listener { response ->
-                runOnUiThread {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "public key received",
-                        Toast.LENGTH_SHORT
-                    )::show
-                }
+                showMessage("public key received")
                 try {
                     val pubKey = KeyFactory.getInstance("RSA").generatePublic(
                         X509EncodedKeySpec(
                             urlDecode(response)
                         )
                     )
-                    println("pubKey:" + pubKey)
-                    runOnUiThread {
-                        Toast.makeText(
-                            this@MainActivity,
-                            "println $pubKey",
-                            Toast.LENGTH_SHORT
-                        )
-                            .show()
-                    }
+                    showMessage("pubKey: $pubKey")
                     encodeAndSend(messageText, queue, pubKey, ip)
                 } catch (e: java.lang.Exception) {
-                    runOnUiThread {
-                        Toast.makeText(
-                            this@MainActivity,
-                            "exception in encrypting data: " + e.toString(),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
+                    showErrorMessage(e,"exception in encrypting data")
                 }
             },
             Response.ErrorListener { error ->
-                runOnUiThread(
-                    Toast.makeText(
-                        this@MainActivity,
-                        "exit error number 2 $error",
-                        Toast.LENGTH_SHORT
-                    )::show
-                )
+                showErrorMessage(error, "exit error number 2")
             })
         queue.add(stringRequest)
     }
@@ -386,16 +308,12 @@ class MainActivity : AppCompatActivity() {
         val wifiManager =
             applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         if (getIP() == "") {
-            Toast.makeText(this, "No IP address entered", Toast.LENGTH_LONG).show()
+            showMessage("No IP address entered")
             return
         }
 
-        if (!(wifiManager.isWifiEnabled)) {
-            Toast.makeText(
-                this,
-                "No connection to Wi-Fi network",
-                Toast.LENGTH_LONG
-            ).show()
+        if (!wifiManager.isWifiEnabled) {
+            showMessage("No connection to Wi-Fi network")
             return
         }
         sendMessageInternal()
