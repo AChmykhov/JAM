@@ -33,7 +33,7 @@ import javax.crypto.spec.SecretKeySpec
 class MainActivity : AppCompatActivity() {
     lateinit var server: ReceiverServer
     var keyPair = generateKeys()
-    var symmetricalKey = generateSymKey()
+    var symmetricalKey: SecretKey? = generateSymKey()
     var localIv: ByteArray? = null
     var externalMessage = ":(("
 
@@ -192,15 +192,27 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    fun encryptKey(symmetricalKey: ByteArray?, publicKey: PublicKey): ByteArray? {
-        if (symmetricalKey == null) {
+    fun encryptKey(symKey: ByteArray?, publicKey: PublicKey): ByteArray? {
+        if (symKey == null) {
             showMessage("ByteArray for url encoding is NULL")
             return null
         }
         val cipher = Cipher.getInstance("RSA")
         cipher.init(Cipher.ENCRYPT_MODE, publicKey)
-        val ciphertext: ByteArray = cipher.doFinal(symmetricalKey)
+        val ciphertext: ByteArray = cipher.doFinal(symKey)
         return ciphertext
+    }
+
+    fun encryptMessage(messageText: String, symKey: SecretKey): Pair<ByteArray, ByteArray> {
+        println("my message is " + messageText)
+        val plaintext: ByteArray = messageText.toByteArray()
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
+        cipher.init(Cipher.ENCRYPT_MODE, symKey)
+        val iv = cipher.iv
+        println("iv before is " + urlEncode(cipher.iv))
+        val ciphertext: ByteArray = cipher.doFinal(plaintext)
+        println("iv after is " + urlEncode(cipher.iv))
+        return Pair(ciphertext, iv)
     }
 
     fun encryptMessage(messageText: String?): ByteArray? {
@@ -208,26 +220,16 @@ class MainActivity : AppCompatActivity() {
             showMessage("ByteArray for url encoding is NULL")
             return null
         }
-        println("my message is " + messageText)
-        val plaintext: ByteArray = messageText.toByteArray()
-        val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
-        cipher.init(Cipher.ENCRYPT_MODE, symmetricalKey)
-        localIv = cipher.iv
-        println("iv before is " + urlEncode(cipher.iv))
-        val ciphertext: ByteArray = cipher.doFinal(plaintext)
-        println("iv after is " + urlEncode(cipher.iv))
-        return ciphertext
+        val (encMsg, iv) = encryptMessage(messageText, symmetricalKey!!)
+        localIv = iv
+        return encMsg
     }
 
-    fun decryptKey(
-        encryptedSymmetricalKey: ByteArray?,
-        privateKey: PrivateKey?
-    ): SecretKey {
+    fun decryptKey(encryptedSymmetricalKey: ByteArray?, privateKey: PrivateKey?): SecretKey {
         val cipher = Cipher.getInstance("RSA")
         cipher.init(Cipher.DECRYPT_MODE, privateKey)
         val plaintext: ByteArray = cipher.doFinal(encryptedSymmetricalKey)
         return SecretKeySpec(plaintext, "RSA")
-
     }
 
     fun decryptMessage(
@@ -246,17 +248,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
-    fun encodeAndSend(messageText: String, queue: RequestQueue, pubKey: PublicKey, ip: String) {
-        val encryptedSymmetricalKey = urlEncode(
+    fun encodeAndSend(messageText: String, queue: RequestQueue, pubKey: PublicKey, symKey: SecretKey, iv: ByteArray, ip: String) {
+        val encryptedSymKey = urlEncode(
             encryptKey(
-                symmetricalKey!!.encoded,
+                symKey.encoded,
                 pubKey
             )
         )
         val stringRequest = StringRequest(
             Request.Method.POST,
-            "http://$ip:63342/?message=$messageText&key=$encryptedSymmetricalKey&symIv=${urlEncode(localIv)}",
+            "http://$ip:63342/?message=$messageText&key=$encryptedSymKey&symIv=${urlEncode(iv)}",
             Response.Listener { secondResponse ->
                 showMessage("Message sended with code $secondResponse")
             },
@@ -264,6 +265,10 @@ class MainActivity : AppCompatActivity() {
                 showErrorMessage(error, "exit error")
             })
         queue.add(stringRequest)
+    }
+
+    fun encodeAndSend(messageText: String, queue: RequestQueue, pubKey: PublicKey, ip: String) {
+        encodeAndSend(messageText, queue, pubKey, symmetricalKey!!, localIv!!, ip)
     }
 
     fun sendMessageInternal() {
