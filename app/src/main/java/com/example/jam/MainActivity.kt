@@ -90,12 +90,11 @@ class MainActivity : AppCompatActivity() {
 
         override fun serve(session: IHTTPSession): Response {
             val params = session.parameters
-//            showMessage("Message received. Params: $params")
             when {
                 params.containsKey("message") -> {  //Tyk
                     try {
                         val externalMessage = decodeMessageFromParams(params, this@MainActivity.keyPair.private)
-                        showMessage("message is $externalMessage")
+                        showMessage("message is `$externalMessage`")
                     } catch (e: java.lang.Exception) {
                         showErrorMessage(e, "message obtaining failed")
                     }
@@ -103,7 +102,6 @@ class MainActivity : AppCompatActivity() {
                     return newFixedLengthResponse("200 OK")
                 }
                 params.containsKey("newMessage") -> {
-                    showMessage("newMessage signal received")
                     val publKey = this@MainActivity.keyPair.public.encoded
                     return newFixedLengthResponse(urlEncode(publKey))
                 }
@@ -164,15 +162,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun encryptMessage(messageText: String, symKey: SecretKey): Triple<ByteArray, ByteArray, ByteArray> {
-        println("my message is $messageText")
         val plaintext: ByteArray = messageText.toByteArray(Charsets.UTF_8)
         val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
         cipher.init(Cipher.ENCRYPT_MODE, symKey)
-        val iv = cipher.iv
-        println("iv before is " + urlEncode(cipher.iv))
         val ciphertext: ByteArray = cipher.doFinal(plaintext)
-        println("iv after is " + urlEncode(cipher.iv))
-        return Triple(ciphertext, iv, symKey.encoded)
+        return Triple(ciphertext, cipher.iv, symKey.encoded)
     }
 
     fun encodeAndSend(encodedMessage: Triple<ByteArray, ByteArray, ByteArray>, pubKey: PublicKey, ip: String) {
@@ -182,7 +176,7 @@ class MainActivity : AppCompatActivity() {
             Request.Method.POST,
             "http://$ip:63342/?message=${urlEncode(encMessage)}&key=${urlEncode(encryptedSymKey)}&symIv=${urlEncode(iv)}",
             Response.Listener { response ->
-                showMessage("Message sended with code $response")
+                showMessage("Message sent with code $response")
             },
             Response.ErrorListener { error ->
                 showErrorMessage(error, "exit error")
@@ -198,8 +192,13 @@ class MainActivity : AppCompatActivity() {
         return SecretKeySpec(plaintext, "RSA")
     }
 
+
     fun decryptMessage(ciphertext: ByteArray, iv: ByteArray, encryptedSymKey: ByteArray, privateKey: PrivateKey): String {
         val symKey = decryptKey(encryptedSymKey, privateKey)
+        return decryptMessage(ciphertext, iv, symKey)
+    }
+
+    fun decryptMessage(ciphertext: ByteArray, iv: ByteArray, symKey: SecretKey): String {
         val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
         val ivParameterSpec = IvParameterSpec(iv)
         cipher.init(Cipher.DECRYPT_MODE, symKey, ivParameterSpec)
@@ -224,21 +223,19 @@ class MainActivity : AppCompatActivity() {
         val stringRequest = StringRequest(
             Request.Method.POST, "http://$ip:63342/?newMessage=true",
             Response.Listener { response ->
-                showMessage("public key received")
                 try {
                     val pubKey = KeyFactory.getInstance("RSA").generatePublic(
                         X509EncodedKeySpec(
                             urlDecode(response)
                         )
                     )
-                    showMessage("pubKey: $pubKey")
                     encodeAndSend(encodedMessage, pubKey, ip)
                 } catch (e: java.lang.Exception) {
                     showErrorMessage(e,"exception in encrypting data")
                 }
             },
             Response.ErrorListener { error ->
-                showErrorMessage(error, "exit error number 2")
+                showErrorMessage(error, "Failed to get public key")
             }
         )
         queue.add(stringRequest)
