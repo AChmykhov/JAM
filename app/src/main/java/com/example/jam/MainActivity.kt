@@ -32,6 +32,7 @@ import javax.crypto.spec.SecretKeySpec
 
 class MainActivity : AppCompatActivity() {
     lateinit var server: ReceiverServer
+    val queue: RequestQueue = Volley.newRequestQueue(this)
     var keyPair: KeyPair = generateKeys()
     var symmetricalKey: SecretKey = generateSymKey()
 
@@ -173,14 +174,14 @@ class MainActivity : AppCompatActivity() {
         return Triple(ciphertext, iv, symKey.encoded)
     }
 
-    fun encodeAndSend(encodedMessage: Triple<ByteArray, ByteArray, ByteArray>, queue: RequestQueue, pubKey: PublicKey, ip: String) {
+    fun encodeAndSend(encodedMessage: Triple<ByteArray, ByteArray, ByteArray>, pubKey: PublicKey, ip: String) {
         val (encMessage, iv, encodedSymKey) = encodedMessage
         val encryptedSymKey = encryptKey(encodedSymKey, pubKey)
         val stringRequest = StringRequest(
             Request.Method.POST,
             "http://$ip:63342/?message=${urlEncode(encMessage)}&key=${urlEncode(encryptedSymKey)}&symIv=${urlEncode(iv)}",
-            Response.Listener { secondResponse ->
-                showMessage("Message sended with code $secondResponse")
+            Response.Listener { response ->
+                showMessage("Message sended with code $response")
             },
             Response.ErrorListener { error ->
                 showErrorMessage(error, "exit error")
@@ -216,7 +217,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun sendMessageInternal() {
-        val queue = Volley.newRequestQueue(this@MainActivity)
         val ip = getIP()
         val msg: String = getMessageText()
         val encodedMessage = encryptMessage(msg, symmetricalKey)
@@ -231,7 +231,7 @@ class MainActivity : AppCompatActivity() {
                         )
                     )
                     showMessage("pubKey: $pubKey")
-                    encodeAndSend(encodedMessage, queue, pubKey, ip)
+                    encodeAndSend(encodedMessage, pubKey, ip)
                 } catch (e: java.lang.Exception) {
                     showErrorMessage(e,"exception in encrypting data")
                 }
