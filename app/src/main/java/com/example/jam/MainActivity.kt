@@ -108,26 +108,28 @@ class MainActivity : AppCompatActivity() {
             this.stop()
         }
 
+        fun decodeMessageFromParams(params: MutableMap<String, MutableList<String>>, keyPair: KeyPair) : String {
+            val encryptedMessage = urlDecode(params["message"]?.get(0))
+            val encryptedExternalSymKey = urlDecode(params["key"]?.get(0))
+            val externalIv =
+                IvParameterSpec(
+                    urlDecode(params["symIv"]?.get(0))
+                )
+            val externalSymKey =
+                decryptKey(
+                    encryptedExternalSymKey,
+                    keyPair.private
+                )
+            return decryptMessage(encryptedMessage, externalSymKey, externalIv)
+        }
 
         override fun serve(session: IHTTPSession): Response {
             val params = session.parameters
 //            showMessage("Message received. Params: $params")
             when {
-                params.containsKey("message") -> {                                                      //Tyk
+                params.containsKey("message") -> {  //Tyk
                     try {
-                        val encryptedMessage = urlDecode(params["message"]?.get(0))
-                        val encryptedExternalSymKey = urlDecode(params["key"]?.get(0))
-                        val externalIv =
-                            IvParameterSpec(
-                                urlDecode(params["symIv"]?.get(0))
-                            )
-                        val externalSymKey =
-                            decryptKey(
-                                encryptedExternalSymKey,
-                                this@MainActivity.keyPair?.private
-                            )
-                        externalMessage = decryptMessage(encryptedMessage, externalSymKey, externalIv)
-
+                        externalMessage = decodeMessageFromParams(params, this@MainActivity.keyPair!!)
                         showMessage("message is " + externalMessage)
                     } catch (e: java.lang.Exception) {
                         showErrorMessage(e, "message obtaining failed")
@@ -151,7 +153,6 @@ class MainActivity : AppCompatActivity() {
 
     fun getLocalIpAddress(): String? {
         try {
-
             val wifiManager: WifiManager =
                 applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
             return ipToString(wifiManager.connectionInfo.ipAddress)
