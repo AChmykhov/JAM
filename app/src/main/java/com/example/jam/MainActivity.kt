@@ -165,7 +165,7 @@ class MainActivity : AppCompatActivity() {
 
     fun encryptMessage(messageText: String, symKey: SecretKey): Triple<ByteArray, ByteArray, ByteArray> {
         println("my message is $messageText")
-        val plaintext: ByteArray = messageText.toByteArray()
+        val plaintext: ByteArray = messageText.toByteArray(Charsets.UTF_8)
         val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
         cipher.init(Cipher.ENCRYPT_MODE, symKey)
         val iv = cipher.iv
@@ -204,7 +204,7 @@ class MainActivity : AppCompatActivity() {
         val ivParameterSpec = IvParameterSpec(iv)
         cipher.init(Cipher.DECRYPT_MODE, symKey, ivParameterSpec)
         val plaintext: ByteArray = cipher.doFinal(ciphertext)
-        return plaintext.toString()
+        return plaintext.toString(Charsets.UTF_8)
     }
 
     fun decodeMessageFromParams(params: Map<String, List<String>>, privateKey: PrivateKey) : String {
