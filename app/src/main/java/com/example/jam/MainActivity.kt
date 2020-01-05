@@ -45,25 +45,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun showMessage(msg: String) {
-        runOnUiThread(
+        runOnUiThread {
             Toast.makeText(
                 this@MainActivity,
                 msg,
                 Toast.LENGTH_SHORT
-            )::show
-        )
+            ).show()
+        }
         System.err.println(msg)
         Log.e("Toast", msg)
     }
 
     fun showErrorMessage(e: java.lang.Exception, msg: String = "") {
-        runOnUiThread(
+        runOnUiThread {
             Toast.makeText(
                 this@MainActivity,
                 "$msg: $e",
                 Toast.LENGTH_SHORT
-            )::show
-        )
+            ).show()
+        }
         e.printStackTrace()
         Log.e("Exception", e.toString())
     }
