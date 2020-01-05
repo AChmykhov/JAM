@@ -34,7 +34,6 @@ class MainActivity : AppCompatActivity() {
     lateinit var server: ReceiverServer
     var keyPair: KeyPair = generateKeys()
     var symmetricalKey: SecretKey = generateSymKey()
-    var externalMessage = ":(("
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,7 +92,7 @@ class MainActivity : AppCompatActivity() {
             when {
                 params.containsKey("message") -> {  //Tyk
                     try {
-                        externalMessage = decodeMessageFromParams(params, this@MainActivity.keyPair.private)
+                        val externalMessage = decodeMessageFromParams(params, this@MainActivity.keyPair.private)
                         showMessage("message is $externalMessage")
                     } catch (e: java.lang.Exception) {
                         showErrorMessage(e, "message obtaining failed")
