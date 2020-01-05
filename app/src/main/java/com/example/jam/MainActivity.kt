@@ -73,28 +73,16 @@ class MainActivity : AppCompatActivity() {
         if (text == null) {
             showMessage("ByteArray for url encoding is NULL")
             return ""
-        } else {
-            val result = URLEncoder.encode(
-                Base64.encodeToString(text, URL_SAFE),
-                "UTF-8"
-            )
-            return result
         }
+        return URLEncoder.encode(Base64.encodeToString(text, URL_SAFE),"UTF-8")
     }
 
     fun urlDecode(text: String?): ByteArray? {
         if (text == null) {
             showMessage("ByteArray for url encoding is NULL")
             return null
-        } else {
-            val result = Base64.decode(
-                URLDecoder.decode(
-                    text,
-                    "UTF-8"
-                ), URL_SAFE
-            )
-            return result
         }
+        return Base64.decode(URLDecoder.decode(text,"UTF-8"), URL_SAFE)
     }
 
     inner class ReceiverServer @Throws(IOException::class) constructor() : NanoHTTPD(63342) {
