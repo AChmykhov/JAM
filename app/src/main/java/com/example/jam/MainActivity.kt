@@ -32,9 +32,8 @@ import javax.crypto.spec.SecretKeySpec
 
 class MainActivity : AppCompatActivity() {
     lateinit var server: ReceiverServer
-    var keyPair = generateKeys()
-    var symmetricalKey: SecretKey? = generateSymKey()
-    var localIv: ByteArray? = null
+    var keyPair: KeyPair = generateKeys()
+    var symmetricalKey: SecretKey = generateSymKey()
     var externalMessage = ":(("
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,19 +68,11 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    fun urlEncode(text: ByteArray?): String {
-        if (text == null) {
-            showMessage("ByteArray for url encoding is NULL")
-            return ""
-        }
+    fun urlEncode(text: ByteArray): String {
         return URLEncoder.encode(Base64.encodeToString(text, URL_SAFE),"UTF-8")
     }
 
-    fun urlDecode(text: String?): ByteArray? {
-        if (text == null) {
-            showMessage("ByteArray for url encoding is NULL")
-            return null
-        }
+    fun urlDecode(text: String): ByteArray {
         return Base64.decode(URLDecoder.decode(text,"UTF-8"), URL_SAFE)
     }
 
@@ -97,17 +88,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         fun decodeMessageFromParams(params: MutableMap<String, MutableList<String>>, keyPair: KeyPair) : String {
-            val encryptedMessage = urlDecode(params["message"]?.get(0))
-            val encryptedExternalSymKey = urlDecode(params["key"]?.get(0))
-            val externalIv =
-                IvParameterSpec(
-                    urlDecode(params["symIv"]?.get(0))
-                )
-            val externalSymKey =
-                decryptKey(
-                    encryptedExternalSymKey,
-                    keyPair.private
-                )
+            if (!(params.containsKey("message") && params.containsKey("key") && params.containsKey("symIv"))) {
+                throw IllegalArgumentException("Missing parameters for incoming message")
+            }
+            val encryptedMessage = urlDecode(params["message"]!!.get(0))
+            val encryptedExternalSymKey = urlDecode(params["key"]!!.get(0))
+            val externalIv = urlDecode(params["symIv"]!!.get(0))
+            val externalSymKey = decryptKey(encryptedExternalSymKey, keyPair.private)
             return decryptMessage(encryptedMessage, externalSymKey, externalIv)
         }
 
@@ -117,8 +104,8 @@ class MainActivity : AppCompatActivity() {
             when {
                 params.containsKey("message") -> {  //Tyk
                     try {
-                        externalMessage = decodeMessageFromParams(params, this@MainActivity.keyPair!!)
-                        showMessage("message is " + externalMessage)
+                        externalMessage = decodeMessageFromParams(params, this@MainActivity.keyPair)
+                        showMessage("message is $externalMessage")
                     } catch (e: java.lang.Exception) {
                         showErrorMessage(e, "message obtaining failed")
                     }
@@ -127,7 +114,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 params.containsKey("newMessage") -> {
                     showMessage("newMessage signal received")
-                    val publKey = this@MainActivity.keyPair?.public?.encoded
+                    val publKey = this@MainActivity.keyPair.public.encoded
                     return newFixedLengthResponse(urlEncode(publKey))
                 }
                 else -> return newFixedLengthResponse("200 OK")
@@ -156,55 +143,38 @@ class MainActivity : AppCompatActivity() {
                 (i shr 8 and 0xFF) + "." +
                 (i shr 16 and 0xFF) + "." +
                 (i shr 24 and 0xFF)
-
     }
-
 
     fun getIP(): String {
         val dataIP = findViewById<TextInputEditText>(R.id.ipInput)
         return dataIP.text.toString()
     }
 
-    fun getMessageText(): String? {
+    fun getMessageText(): String {
         val dataMessage = findViewById<TextInputEditText>(R.id.messageInput)
         return dataMessage.text.toString()
     }
 
-    fun generateKeys(): KeyPair? {
-        var keyPair: KeyPair? = null
-        try {
-            val keyGen = KeyPairGenerator.getInstance("RSA")
-            keyGen.initialize(1024)
-            keyPair = keyGen.generateKeyPair()
-        } catch (e: java.lang.Exception) {
-            showErrorMessage(e, "Hi, there is exception with RSA keys: ")
-        }
-
-
-        return keyPair
+    fun generateKeys(): KeyPair {
+        val keyGen = KeyPairGenerator.getInstance("RSA")
+        keyGen.initialize(1024)
+        return keyGen.generateKeyPair()
     }
 
-    fun generateSymKey(): SecretKey? {
+    fun generateSymKey(): SecretKey {
         val keygen = KeyGenerator.getInstance("AES")
         keygen.init(256)
-        val key = keygen.generateKey()
-        return key
+        return keygen.generateKey()
     }
 
-
-    fun encryptKey(symKey: ByteArray?, publicKey: PublicKey): ByteArray? {
-        if (symKey == null) {
-            showMessage("ByteArray for url encoding is NULL")
-            return null
-        }
+    fun encryptKey(symKey: ByteArray, publicKey: PublicKey): ByteArray {
         val cipher = Cipher.getInstance("RSA")
         cipher.init(Cipher.ENCRYPT_MODE, publicKey)
-        val ciphertext: ByteArray = cipher.doFinal(symKey)
-        return ciphertext
+        return cipher.doFinal(symKey)
     }
 
     fun encryptMessage(messageText: String, symKey: SecretKey): Pair<ByteArray, ByteArray> {
-        println("my message is " + messageText)
+        println("my message is $messageText")
         val plaintext: ByteArray = messageText.toByteArray()
         val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
         cipher.init(Cipher.ENCRYPT_MODE, symKey)
@@ -215,14 +185,8 @@ class MainActivity : AppCompatActivity() {
         return Pair(ciphertext, iv)
     }
 
-    fun encryptMessage(messageText: String?): ByteArray? {
-        if (messageText == null) {
-            showMessage("ByteArray for url encoding is NULL")
-            return null
-        }
-        val (encMsg, iv) = encryptMessage(messageText, symmetricalKey!!)
-        localIv = iv
-        return encMsg
+    fun encryptMessage(messageText: String): Pair<ByteArray, ByteArray> {
+        return encryptMessage(messageText, symmetricalKey)
     }
 
     fun decryptKey(encryptedSymmetricalKey: ByteArray?, privateKey: PrivateKey?): SecretKey {
@@ -232,50 +196,39 @@ class MainActivity : AppCompatActivity() {
         return SecretKeySpec(plaintext, "RSA")
     }
 
-    fun decryptMessage(
-        ciphertext: ByteArray?,
-        key: SecretKey,
-        externalIvParameterSpec: IvParameterSpec
-    ): String {
-        if (ciphertext == null) {
-            showMessage("ByteArray for url encoding is NULL")
-            return ""
-        } else {
-            val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
-            cipher.init(Cipher.DECRYPT_MODE, key, externalIvParameterSpec)
-            val plaintext: ByteArray = cipher.doFinal(ciphertext)
-            return plaintext.toString()
-        }
+    fun decryptMessage(ciphertext: ByteArray, key: SecretKey, iv: ByteArray): String {
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
+        val ivParameterSpec = IvParameterSpec(iv)
+        cipher.init(Cipher.DECRYPT_MODE, key, ivParameterSpec)
+        val plaintext: ByteArray = cipher.doFinal(ciphertext)
+        return plaintext.toString()
     }
 
-    fun encodeAndSend(messageText: String, queue: RequestQueue, pubKey: PublicKey, symKey: SecretKey, iv: ByteArray, ip: String) {
-        val encryptedSymKey = urlEncode(
-            encryptKey(
-                symKey.encoded,
-                pubKey
-            )
-        )
+    fun encodeAndSend(encodedMessage: Pair<ByteArray, ByteArray>, queue: RequestQueue, pubKey: PublicKey, symKey: SecretKey, ip: String) {
+        val (encMessage, iv) = encodedMessage
+        val encSymKey = encryptKey(symKey.encoded, pubKey)
         val stringRequest = StringRequest(
             Request.Method.POST,
-            "http://$ip:63342/?message=$messageText&key=$encryptedSymKey&symIv=${urlEncode(iv)}",
+            "http://$ip:63342/?message=${urlEncode(encMessage)}&key=${urlEncode(encSymKey)}&symIv=${urlEncode(iv)}",
             Response.Listener { secondResponse ->
                 showMessage("Message sended with code $secondResponse")
             },
             Response.ErrorListener { error ->
                 showErrorMessage(error, "exit error")
-            })
+            }
+        )
         queue.add(stringRequest)
     }
 
-    fun encodeAndSend(messageText: String, queue: RequestQueue, pubKey: PublicKey, ip: String) {
-        encodeAndSend(messageText, queue, pubKey, symmetricalKey!!, localIv!!, ip)
+    fun encodeAndSend(encodedMessage: Pair<ByteArray, ByteArray>, queue: RequestQueue, pubKey: PublicKey, ip: String) {
+        encodeAndSend(encodedMessage, queue, pubKey, symmetricalKey, ip)
     }
 
     fun sendMessageInternal() {
         val queue = Volley.newRequestQueue(this@MainActivity)
         val ip = getIP()
-        val messageText = urlEncode(encryptMessage(getMessageText()))
-        println(messageText)
+        val msg: String = getMessageText()
+        val encodedMessage: Pair<ByteArray, ByteArray> = encryptMessage(msg)
         val stringRequest = StringRequest(
             Request.Method.POST, "http://$ip:63342/?newMessage=true",
             Response.Listener { response ->
@@ -287,14 +240,15 @@ class MainActivity : AppCompatActivity() {
                         )
                     )
                     showMessage("pubKey: $pubKey")
-                    encodeAndSend(messageText, queue, pubKey, ip)
+                    encodeAndSend(encodedMessage, queue, pubKey, ip)
                 } catch (e: java.lang.Exception) {
                     showErrorMessage(e,"exception in encrypting data")
                 }
             },
             Response.ErrorListener { error ->
                 showErrorMessage(error, "exit error number 2")
-            })
+            }
+        )
         queue.add(stringRequest)
     }
 
@@ -305,7 +259,6 @@ class MainActivity : AppCompatActivity() {
             showMessage("No IP address entered")
             return
         }
-
         if (!wifiManager.isWifiEnabled) {
             showMessage("No connection to Wi-Fi network")
             return
@@ -323,5 +276,4 @@ class MainActivity : AppCompatActivity() {
 //        mediaplayer.stop()
         finish()
     }
-
 }
