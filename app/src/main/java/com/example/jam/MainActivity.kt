@@ -185,10 +185,6 @@ class MainActivity : AppCompatActivity() {
         return Pair(ciphertext, iv)
     }
 
-    fun encryptMessage(messageText: String): Pair<ByteArray, ByteArray> {
-        return encryptMessage(messageText, symmetricalKey)
-    }
-
     fun decryptKey(encryptedSymmetricalKey: ByteArray?, privateKey: PrivateKey?): SecretKey {
         val cipher = Cipher.getInstance("RSA")
         cipher.init(Cipher.DECRYPT_MODE, privateKey)
@@ -220,15 +216,11 @@ class MainActivity : AppCompatActivity() {
         queue.add(stringRequest)
     }
 
-    fun encodeAndSend(encodedMessage: Pair<ByteArray, ByteArray>, queue: RequestQueue, pubKey: PublicKey, ip: String) {
-        encodeAndSend(encodedMessage, queue, pubKey, symmetricalKey, ip)
-    }
-
     fun sendMessageInternal() {
         val queue = Volley.newRequestQueue(this@MainActivity)
         val ip = getIP()
         val msg: String = getMessageText()
-        val encodedMessage: Pair<ByteArray, ByteArray> = encryptMessage(msg)
+        val encodedMessage: Pair<ByteArray, ByteArray> = encryptMessage(msg, symmetricalKey)
         val stringRequest = StringRequest(
             Request.Method.POST, "http://$ip:63342/?newMessage=true",
             Response.Listener { response ->
@@ -240,7 +232,7 @@ class MainActivity : AppCompatActivity() {
                         )
                     )
                     showMessage("pubKey: $pubKey")
-                    encodeAndSend(encodedMessage, queue, pubKey, ip)
+                    encodeAndSend(encodedMessage, queue, pubKey, symmetricalKey, ip)
                 } catch (e: java.lang.Exception) {
                     showErrorMessage(e,"exception in encrypting data")
                 }
