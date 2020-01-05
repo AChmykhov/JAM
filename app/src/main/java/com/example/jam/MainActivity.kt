@@ -32,7 +32,7 @@ import javax.crypto.spec.SecretKeySpec
 
 class MainActivity : AppCompatActivity() {
     lateinit var server: ReceiverServer
-    val queue: RequestQueue = Volley.newRequestQueue(this)
+    lateinit var queue: RequestQueue
     var keyPair: KeyPair = generateKeys()
     var symmetricalKey: SecretKey = generateSymKey()
 
@@ -40,6 +40,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         runServer()
+        queue = Volley.newRequestQueue(this@MainActivity)
         findViewById<TextView>(R.id.myIP).text = getLocalIpAddress().toString()
     }
 
