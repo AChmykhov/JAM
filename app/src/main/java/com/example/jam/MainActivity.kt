@@ -87,24 +87,13 @@ class MainActivity : AppCompatActivity() {
             this.stop()
         }
 
-        fun decodeMessageFromParams(params: MutableMap<String, MutableList<String>>, keyPair: KeyPair) : String {
-            if (!(params.containsKey("message") && params.containsKey("key") && params.containsKey("symIv"))) {
-                throw IllegalArgumentException("Missing parameters for incoming message")
-            }
-            val encryptedMessage = urlDecode(params["message"]!!.get(0))
-            val encryptedExternalSymKey = urlDecode(params["key"]!!.get(0))
-            val externalIv = urlDecode(params["symIv"]!!.get(0))
-            val externalSymKey = decryptKey(encryptedExternalSymKey, keyPair.private)
-            return decryptMessage(encryptedMessage, externalSymKey, externalIv)
-        }
-
         override fun serve(session: IHTTPSession): Response {
             val params = session.parameters
 //            showMessage("Message received. Params: $params")
             when {
                 params.containsKey("message") -> {  //Tyk
                     try {
-                        externalMessage = decodeMessageFromParams(params, this@MainActivity.keyPair)
+                        externalMessage = decodeMessageFromParams(params, this@MainActivity.keyPair.private)
                         showMessage("message is $externalMessage")
                     } catch (e: java.lang.Exception) {
                         showErrorMessage(e, "message obtaining failed")
@@ -185,21 +174,6 @@ class MainActivity : AppCompatActivity() {
         return Pair(ciphertext, iv)
     }
 
-    fun decryptKey(encryptedSymmetricalKey: ByteArray?, privateKey: PrivateKey?): SecretKey {
-        val cipher = Cipher.getInstance("RSA")
-        cipher.init(Cipher.DECRYPT_MODE, privateKey)
-        val plaintext: ByteArray = cipher.doFinal(encryptedSymmetricalKey)
-        return SecretKeySpec(plaintext, "RSA")
-    }
-
-    fun decryptMessage(ciphertext: ByteArray, key: SecretKey, iv: ByteArray): String {
-        val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
-        val ivParameterSpec = IvParameterSpec(iv)
-        cipher.init(Cipher.DECRYPT_MODE, key, ivParameterSpec)
-        val plaintext: ByteArray = cipher.doFinal(ciphertext)
-        return plaintext.toString()
-    }
-
     fun encodeAndSend(encodedMessage: Pair<ByteArray, ByteArray>, queue: RequestQueue, pubKey: PublicKey, symKey: SecretKey, ip: String) {
         val (encMessage, iv) = encodedMessage
         val encSymKey = encryptKey(symKey.encoded, pubKey)
@@ -214,6 +188,32 @@ class MainActivity : AppCompatActivity() {
             }
         )
         queue.add(stringRequest)
+    }
+
+    fun decryptKey(encryptedSymmetricalKey: ByteArray, privateKey: PrivateKey): SecretKey {
+        val cipher = Cipher.getInstance("RSA")
+        cipher.init(Cipher.DECRYPT_MODE, privateKey)
+        val plaintext: ByteArray = cipher.doFinal(encryptedSymmetricalKey)
+        return SecretKeySpec(plaintext, "RSA")
+    }
+
+    fun decryptMessage(ciphertext: ByteArray, encryptedSymKey: ByteArray, iv: ByteArray, privateKey: PrivateKey): String {
+        val symKey = decryptKey(encryptedSymKey, privateKey)
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
+        val ivParameterSpec = IvParameterSpec(iv)
+        cipher.init(Cipher.DECRYPT_MODE, symKey, ivParameterSpec)
+        val plaintext: ByteArray = cipher.doFinal(ciphertext)
+        return plaintext.toString()
+    }
+
+    fun decodeMessageFromParams(params: MutableMap<String, MutableList<String>>, privateKey: PrivateKey) : String {
+        if (!(params.containsKey("message") && params.containsKey("key") && params.containsKey("symIv"))) {
+            throw IllegalArgumentException("Missing parameters for incoming message")
+        }
+        val encryptedMessage = urlDecode(params["message"]!!.get(0))
+        val encryptedExternalSymKey = urlDecode(params["key"]!!.get(0))
+        val externalIv = urlDecode(params["symIv"]!!.get(0))
+        return decryptMessage(encryptedMessage, encryptedExternalSymKey, externalIv, privateKey)
     }
 
     fun sendMessageInternal() {
