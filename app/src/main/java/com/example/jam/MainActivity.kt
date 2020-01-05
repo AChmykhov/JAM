@@ -162,7 +162,7 @@ class MainActivity : AppCompatActivity() {
         return cipher.doFinal(symKey)
     }
 
-    fun encryptMessage(messageText: String, symKey: SecretKey): Pair<ByteArray, ByteArray> {
+    fun encryptMessage(messageText: String, symKey: SecretKey): Triple<ByteArray, ByteArray, ByteArray> {
         println("my message is $messageText")
         val plaintext: ByteArray = messageText.toByteArray()
         val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
@@ -171,15 +171,15 @@ class MainActivity : AppCompatActivity() {
         println("iv before is " + urlEncode(cipher.iv))
         val ciphertext: ByteArray = cipher.doFinal(plaintext)
         println("iv after is " + urlEncode(cipher.iv))
-        return Pair(ciphertext, iv)
+        return Triple(ciphertext, iv, symKey.encoded)
     }
 
-    fun encodeAndSend(encodedMessage: Pair<ByteArray, ByteArray>, queue: RequestQueue, pubKey: PublicKey, symKey: SecretKey, ip: String) {
-        val (encMessage, iv) = encodedMessage
-        val encSymKey = encryptKey(symKey.encoded, pubKey)
+    fun encodeAndSend(encodedMessage: Triple<ByteArray, ByteArray, ByteArray>, queue: RequestQueue, pubKey: PublicKey, ip: String) {
+        val (encMessage, iv, encodedSymKey) = encodedMessage
+        val encryptedSymKey = encryptKey(encodedSymKey, pubKey)
         val stringRequest = StringRequest(
             Request.Method.POST,
-            "http://$ip:63342/?message=${urlEncode(encMessage)}&key=${urlEncode(encSymKey)}&symIv=${urlEncode(iv)}",
+            "http://$ip:63342/?message=${urlEncode(encMessage)}&key=${urlEncode(encryptedSymKey)}&symIv=${urlEncode(iv)}",
             Response.Listener { secondResponse ->
                 showMessage("Message sended with code $secondResponse")
             },
@@ -197,7 +197,7 @@ class MainActivity : AppCompatActivity() {
         return SecretKeySpec(plaintext, "RSA")
     }
 
-    fun decryptMessage(ciphertext: ByteArray, encryptedSymKey: ByteArray, iv: ByteArray, privateKey: PrivateKey): String {
+    fun decryptMessage(ciphertext: ByteArray, iv: ByteArray, encryptedSymKey: ByteArray, privateKey: PrivateKey): String {
         val symKey = decryptKey(encryptedSymKey, privateKey)
         val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
         val ivParameterSpec = IvParameterSpec(iv)
@@ -213,14 +213,14 @@ class MainActivity : AppCompatActivity() {
         val encryptedMessage = urlDecode(params["message"]!!.get(0))
         val encryptedExternalSymKey = urlDecode(params["key"]!!.get(0))
         val externalIv = urlDecode(params["symIv"]!!.get(0))
-        return decryptMessage(encryptedMessage, encryptedExternalSymKey, externalIv, privateKey)
+        return decryptMessage(encryptedMessage, externalIv, encryptedExternalSymKey, privateKey)
     }
 
     fun sendMessageInternal() {
         val queue = Volley.newRequestQueue(this@MainActivity)
         val ip = getIP()
         val msg: String = getMessageText()
-        val encodedMessage: Pair<ByteArray, ByteArray> = encryptMessage(msg, symmetricalKey)
+        val encodedMessage = encryptMessage(msg, symmetricalKey)
         val stringRequest = StringRequest(
             Request.Method.POST, "http://$ip:63342/?newMessage=true",
             Response.Listener { response ->
@@ -232,7 +232,7 @@ class MainActivity : AppCompatActivity() {
                         )
                     )
                     showMessage("pubKey: $pubKey")
-                    encodeAndSend(encodedMessage, queue, pubKey, symmetricalKey, ip)
+                    encodeAndSend(encodedMessage, queue, pubKey, ip)
                 } catch (e: java.lang.Exception) {
                     showErrorMessage(e,"exception in encrypting data")
                 }
