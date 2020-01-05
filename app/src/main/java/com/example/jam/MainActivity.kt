@@ -206,13 +206,13 @@ class MainActivity : AppCompatActivity() {
         return plaintext.toString()
     }
 
-    fun decodeMessageFromParams(params: MutableMap<String, MutableList<String>>, privateKey: PrivateKey) : String {
+    fun decodeMessageFromParams(params: Map<String, List<String>>, privateKey: PrivateKey) : String {
         if (!(params.containsKey("message") && params.containsKey("key") && params.containsKey("symIv"))) {
             throw IllegalArgumentException("Missing parameters for incoming message")
         }
-        val encryptedMessage = urlDecode(params["message"]!!.get(0))
-        val encryptedExternalSymKey = urlDecode(params["key"]!!.get(0))
-        val externalIv = urlDecode(params["symIv"]!!.get(0))
+        val encryptedMessage = urlDecode(params.getValue("message")[0])
+        val encryptedExternalSymKey = urlDecode(params.getValue("key")[0])
+        val externalIv = urlDecode(params.getValue("symIv")[0])
         return decryptMessage(encryptedMessage, externalIv, encryptedExternalSymKey, privateKey)
     }
 
