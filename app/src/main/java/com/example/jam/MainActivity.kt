@@ -2,8 +2,10 @@ package com.example.jam
 
 //import android.util.Base64.DEFAULT
 import android.content.Context
+import android.content.res.Resources
 import android.net.wifi.WifiManager
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.util.Base64
 import android.util.Base64.URL_SAFE
 import android.util.Log
@@ -11,6 +13,7 @@ import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
 import com.android.volley.Request
 import com.android.volley.RequestQueue
 import com.android.volley.Response
@@ -28,241 +31,46 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
-
+import android.view.Menu
+import android.view.MenuItem
+import androidx.navigation.NavController
+import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.ui.AppBarConfiguration
+import com.google.android.material.navigation.NavigationView
+import android.widget.ArrayAdapter
+import androidx.fragment.app.FragmentTransaction
+import androidx.navigation.Navigation
+import androidx.navigation.findNavController
+import androidx.navigation.ui.onNavDestinationSelected
+import kotlinx.android.synthetic.main.activity_main.*
+import androidx.navigation.fragment.DialogFragmentNavigator
 
 class MainActivity : AppCompatActivity() {
-    lateinit var server: ReceiverServer
-    lateinit var queue: RequestQueue
-    var keyPair: KeyPair = generateKeys()
-    var symmetricalKey: SecretKey = generateSymKey()
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        runServer()
-        queue = Volley.newRequestQueue(this@MainActivity)
-        findViewById<TextView>(R.id.myIP).text = getLocalIpAddress().toString()
-    }
 
-    fun showMessage(msg: String) {
-        runOnUiThread {
-            Toast.makeText(
-                this@MainActivity,
-                msg,
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-        System.err.println(msg)
-        Log.e("Toast", msg)
-    }
+        val contactlist = arrayOf<String>("A", "AA", "AAAA", "AAAAAAAAAAAAAAAAAAAAA")
 
-    fun showErrorMessage(e: java.lang.Exception, msg: String = "") {
-        runOnUiThread {
-            Toast.makeText(
-                this@MainActivity,
-                "$msg: $e",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-        e.printStackTrace()
-        Log.e("Exception", e.toString())
-    }
-
-
-    fun urlEncode(text: ByteArray): String {
-        return URLEncoder.encode(Base64.encodeToString(text, URL_SAFE),"UTF-8")
-    }
-
-    fun urlDecode(text: String): ByteArray {
-        return Base64.decode(URLDecoder.decode(text,"UTF-8"), URL_SAFE)
-    }
-
-    inner class ReceiverServer @Throws(IOException::class) constructor() : NanoHTTPD(63342) {
-
-        init {
-            start(SOCKET_READ_TIMEOUT, false)
-        }
-
-        fun stpServer() {
-            //Add here end of session with ndns server
-            this.stop()
-        }
-
-        override fun serve(session: IHTTPSession): Response {
-            val params = session.parameters
-            when {
-                params.containsKey("message") -> {  //Tyk
-                    try {
-                        val externalMessage = decodeMessageFromParams(params, this@MainActivity.keyPair.private)
-                        showMessage("message is `$externalMessage`")
-                    } catch (e: java.lang.Exception) {
-                        showErrorMessage(e, "message obtaining failed")
-                    }
-
-                    return newFixedLengthResponse("200 OK")
-                }
-                params.containsKey("newMessage") -> {
-                    val publKey = this@MainActivity.keyPair.public.encoded
-                    return newFixedLengthResponse(urlEncode(publKey))
-                }
-                else -> return newFixedLengthResponse("200 OK")
-            }
+//        val contactlist = resources.getStringArray(R.array.names)
+          contact_list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, contactlist)
+          contact_list.setOnItemClickListener { parent, view, position, id ->
+              Toast.makeText(this, contactlist[position], Toast.LENGTH_SHORT).show()
         }
     }
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        val retValue = super.onCreateOptionsMenu(menu)
+        menuInflater.inflate(R.menu.upper_menu, menu)
+        return retValue
+    }
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        val cnd = CreateNewDialogFragment()
+        val manager = supportFragmentManager
+        val name = ""
+        val IP = ""
+        cnd.show(manager, "myDialog")
 
-    fun runServer() {
-        server = ReceiverServer()
+        return super.onOptionsItemSelected(item)
     }
 
-    fun getLocalIpAddress(): String? {
-        try {
-            val wifiManager: WifiManager =
-                applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-            return ipToString(wifiManager.connectionInfo.ipAddress)
-        } catch (ex: Exception) {
-            Log.e("IP Address", ex.toString())
-        }
-
-        return null
-    }
-
-    fun ipToString(i: Int): String {
-        return (i and 0xFF).toString() + "." +
-                (i shr 8 and 0xFF) + "." +
-                (i shr 16 and 0xFF) + "." +
-                (i shr 24 and 0xFF)
-    }
-
-    fun getIP(): String {
-        val dataIP = findViewById<TextInputEditText>(R.id.ipInput)
-        return dataIP.text.toString()
-    }
-
-    fun getMessageText(): String {
-        val dataMessage = findViewById<TextInputEditText>(R.id.messageInput)
-        return dataMessage.text.toString()
-    }
-
-    fun generateKeys(): KeyPair {
-        val keyGen = KeyPairGenerator.getInstance("RSA")
-        keyGen.initialize(1024)
-        return keyGen.generateKeyPair()
-    }
-
-    fun generateSymKey(): SecretKey {
-        val keygen = KeyGenerator.getInstance("AES")
-        keygen.init(256)
-        return keygen.generateKey()
-    }
-
-    fun encryptKey(symKey: ByteArray, publicKey: PublicKey): ByteArray {
-        val cipher = Cipher.getInstance("RSA")
-        cipher.init(Cipher.ENCRYPT_MODE, publicKey)
-        return cipher.doFinal(symKey)
-    }
-
-    fun encryptMessage(messageText: String, symKey: SecretKey): Triple<ByteArray, ByteArray, ByteArray> {
-        val plaintext: ByteArray = messageText.toByteArray(Charsets.UTF_8)
-        val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
-        cipher.init(Cipher.ENCRYPT_MODE, symKey)
-        val ciphertext: ByteArray = cipher.doFinal(plaintext)
-        return Triple(ciphertext, cipher.iv, symKey.encoded)
-    }
-
-    fun encodeAndSend(encodedMessage: Triple<ByteArray, ByteArray, ByteArray>, pubKey: PublicKey, ip: String) {
-        val (encMessage, iv, encodedSymKey) = encodedMessage
-        val encryptedSymKey = encryptKey(encodedSymKey, pubKey)
-        val stringRequest = StringRequest(
-            Request.Method.POST,
-            "http://$ip:63342/?message=${urlEncode(encMessage)}&key=${urlEncode(encryptedSymKey)}&symIv=${urlEncode(iv)}",
-            Response.Listener { response ->
-                showMessage("Message sent with code $response")
-            },
-            Response.ErrorListener { error ->
-                showErrorMessage(error, "exit error")
-            }
-        )
-        queue.add(stringRequest)
-    }
-
-    fun decryptKey(encryptedSymmetricalKey: ByteArray, privateKey: PrivateKey): SecretKey {
-        val cipher = Cipher.getInstance("RSA")
-        cipher.init(Cipher.DECRYPT_MODE, privateKey)
-        val plaintext: ByteArray = cipher.doFinal(encryptedSymmetricalKey)
-        return SecretKeySpec(plaintext, "RSA")
-    }
-
-
-    fun decryptMessage(ciphertext: ByteArray, iv: ByteArray, encryptedSymKey: ByteArray, privateKey: PrivateKey): String {
-        val symKey = decryptKey(encryptedSymKey, privateKey)
-        return decryptMessage(ciphertext, iv, symKey)
-    }
-
-    fun decryptMessage(ciphertext: ByteArray, iv: ByteArray, symKey: SecretKey): String {
-        val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
-        val ivParameterSpec = IvParameterSpec(iv)
-        cipher.init(Cipher.DECRYPT_MODE, symKey, ivParameterSpec)
-        val plaintext: ByteArray = cipher.doFinal(ciphertext)
-        return plaintext.toString(Charsets.UTF_8)
-    }
-
-    fun decodeMessageFromParams(params: Map<String, List<String>>, privateKey: PrivateKey) : String {
-        if (!(params.containsKey("message") && params.containsKey("key") && params.containsKey("symIv"))) {
-            throw IllegalArgumentException("Missing parameters for incoming message")
-        }
-        val encryptedMessage = urlDecode(params.getValue("message")[0])
-        val encryptedExternalSymKey = urlDecode(params.getValue("key")[0])
-        val externalIv = urlDecode(params.getValue("symIv")[0])
-        return decryptMessage(encryptedMessage, externalIv, encryptedExternalSymKey, privateKey)
-    }
-
-    fun sendMessageInternal() {
-        val ip = getIP()
-        val msg: String = getMessageText()
-        val encodedMessage = encryptMessage(msg, symmetricalKey)
-        val stringRequest = StringRequest(
-            Request.Method.POST, "http://$ip:63342/?newMessage=true",
-            Response.Listener { response ->
-                try {
-                    val pubKey = KeyFactory.getInstance("RSA").generatePublic(
-                        X509EncodedKeySpec(
-                            urlDecode(response)
-                        )
-                    )
-                    encodeAndSend(encodedMessage, pubKey, ip)
-                } catch (e: java.lang.Exception) {
-                    showErrorMessage(e,"exception in encrypting data")
-                }
-            },
-            Response.ErrorListener { error ->
-                showErrorMessage(error, "Failed to get public key")
-            }
-        )
-        queue.add(stringRequest)
-    }
-
-    fun sendMessage(@Suppress("UNUSED_PARAMETER") view: View) {
-        val wifiManager =
-            applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        if (getIP() == "") {
-            showMessage("No IP address entered")
-            return
-        }
-        if (!wifiManager.isWifiEnabled) {
-            showMessage("No connection to Wi-Fi network")
-            return
-        }
-        sendMessageInternal()
-    }
-
-    override fun onBackPressed() {
-        close()
-        super.onBackPressed()
-    }
-
-    fun close() {
-        server.stpServer()
-//        mediaplayer.stop()
-        finish()
-    }
 }
