@@ -313,7 +313,7 @@ data class Member(
 )
 
 @Dao
-interface JamDao{
+interface jamDao{
 
 //    Users:
 
@@ -363,10 +363,28 @@ interface JamDao{
 @Database(entities = arrayOf(User::class, Message::class, Chat::class, Member::class), version = 1)
 abstract class AppDatabase : RoomDatabase() {
 
-    abstract fun userDao(): JamDao
+    abstract fun jamDao(): jamDao
 
-    val db = Room.databaseBuilder(
-        context.applicationContext,
-        AppDatabase::class, "jam-database"
-    ).build()
+    companion object {
+        // Singleton prevents multiple instances of database opening at the
+        // same time.
+        @Volatile
+        private var INSTANCE: AppDatabase? = null
+
+        fun getDatabase(context: Context): AppDatabase {
+            val tempInstance = INSTANCE
+            if (tempInstance != null) {
+                return tempInstance
+            }
+            synchronized(this) {
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java,
+                    "jam_database"
+                ).build()
+                INSTANCE = instance
+                return instance
+            }
+        }
+    }
 }
