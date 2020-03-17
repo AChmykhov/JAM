@@ -1,6 +1,6 @@
 package com.example.jam
 
-//import android.util.Base64.DEFAULT
+import android.util.Base64.DEFAULT
 import android.content.Context
 import android.content.res.Resources
 import android.net.wifi.WifiManager
@@ -44,19 +44,39 @@ import androidx.navigation.findNavController
 import androidx.navigation.ui.onNavDestinationSelected
 import kotlinx.android.synthetic.main.activity_main.*
 import androidx.navigation.fragment.DialogFragmentNavigator
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 
 class MainActivity : AppCompatActivity() {
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var viewAdapter: RecyclerView.Adapter<*>
+    private lateinit var viewManager: RecyclerView.LayoutManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         val contactlist = arrayOf<String>("A", "AA", "AAAA", "AAAAAAAAAAAAAAAAAAAAA")
 
-//        val contactlist = resources.getStringArray(R.array.names)
-          contact_list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, contactlist)
-          contact_list.setOnItemClickListener { parent, view, position, id ->
-              Toast.makeText(this, contactlist[position], Toast.LENGTH_SHORT).show()
-        }
+        val recyclerView : RecyclerView = findViewById(R.id.contactList)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+
+//        contact_list.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, contactlist)
+//        viewManager = LinearLayoutManager(this)
+//        viewAdapter = MyAdapter(myDataset)
+
+//        recyclerView = findViewById<RecyclerView>(R.id.my_recycler_view).apply {
+            // use this setting to improve performance if you know that changes
+            // in content do not change the layout size of the RecyclerView
+//            setHasFixedSize(true)
+
+            // use a linear layout manager
+//            layoutManager = viewManager
+
+            // specify an viewAdapter (see also next example)
+//            adapter = viewAdapter
+//          }
+//        }
     }
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         val retValue = super.onCreateOptionsMenu(menu)
