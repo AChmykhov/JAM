@@ -9,7 +9,6 @@ import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.navigation.NavController
 import androidx.navigation.ui.AppBarConfiguration
 import com.android.volley.Request
 import com.android.volley.RequestQueue

@@ -1,20 +1,14 @@
 package com.example.jam
 
-import android.app.Dialog
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.DialogFragment
-import androidx.navigation.Navigation
 import com.google.android.material.textfield.TextInputEditText
 import kotlinx.android.synthetic.main.create_new_dialog_fragment.*
-
-
-
 
 
 class CreateNewDialogFragment : DialogFragment(){
@@ -27,9 +21,12 @@ class CreateNewDialogFragment : DialogFragment(){
         return inflater.inflate(R.layout.create_new_dialog_fragment, container, false)
     }
 
-
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        confirm_button.setOnClickListener { go(view) }
+        super.onViewCreated(view, savedInstanceState)
+    }
     fun getName() : String{
- //       val name = name_Input.text.toString()
+        //       val name = name_Input.text.toString()
         val name = view?.findViewById<TextInputEditText>(R.id.name_Input)
         return name?.text.toString()
     }
@@ -56,7 +53,9 @@ class CreateNewDialogFragment : DialogFragment(){
             toast.show()
             return
         }
-        dialog?.cancel()
+        val i = Intent(this.context, DialogActivity::class.java)
+        startActivity(i)
+//        dialog?.cancel()
     }
 
 

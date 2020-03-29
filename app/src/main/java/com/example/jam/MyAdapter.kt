@@ -1,10 +1,9 @@
 package com.example.jam
 
-import androidx.recyclerview.widget.RecyclerView
-import android.widget.TextView
-import android.view.ViewGroup
-import android.view.View
 import android.view.LayoutInflater
+import android.view.ViewGroup
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
 
 class MyAdapter(private val myDataset: Array<String>) :
     RecyclerView.Adapter<MyAdapter.MyViewHolder>() {
