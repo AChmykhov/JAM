@@ -53,7 +53,7 @@ class CreateNewDialogFragment : DialogFragment(){
             toast.show()
             return
         }
-        val i = Intent(this.context, DialogActivity::class.java)
+        val i = Intent(activity, DialogActivity::class.java)
         startActivity(i)
 //        dialog?.cancel()
     }
