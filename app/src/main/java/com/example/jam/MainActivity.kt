@@ -24,6 +24,7 @@ class MainActivity : AppCompatActivity() {
         for(i in 0..100) {
             values.add("$i element")
         }
+
         return values
     }
 
