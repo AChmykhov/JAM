@@ -11,7 +11,6 @@ import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.room.*
 import com.android.volley.Request
 import com.android.volley.RequestQueue
 import com.android.volley.Response
@@ -283,108 +282,4 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-@Entity(tableName = "users")
-data class User(
-    @PrimaryKey(autoGenerate = true) var id: Int,
-    @ColumnInfo(name = "first_name") var firstName: String,
-    @ColumnInfo(name = "last_name") var lastName: String?,
-    @ColumnInfo(name = "publ_key") var publicKey: PublicKey
-)
 
-@Entity(tableName = "messages")
-data class Message(
-    @PrimaryKey(autoGenerate = true) var id: Int,
-    @ColumnInfo(name = "sender_id") var senderId: Int,
-    @ColumnInfo(name = "chat_id") var chatId: Int,
-    @ColumnInfo(name = "text") var text: String
-)
-
-@Entity(tableName = "chats")
-data class Chat(
-    @PrimaryKey(autoGenerate = true) var id: Int,
-    @ColumnInfo(name = "name") var name: String?
-)
-
-@Entity(tableName = "members")
-data class Member(
-    @PrimaryKey(autoGenerate = true) var id: Int,
-    @ColumnInfo(name = "user_id") var userId:Int,
-    @ColumnInfo(name = "chat_id") var chatId: Int
-)
-
-@Dao
-interface jamDao{
-
-//    Users:
-
-    @Query("SELECT * FROM users WHERE id = (:userId)")
-    fun getUserById(userId: Int): User
-
-    @Insert
-    fun insertAll(vararg users: User)
-
-    @Delete
-    fun delete(users: User)
-
-//    Messages
-
-    @Query("SELECT * FROM messages WHERE id = (:messageId)")
-    fun getMessageById(messageId: Int): Message
-
-    @Insert
-    fun insertAll(vararg messages: Message)
-
-    @Delete
-    fun delete(message: Message)
-
-//    Chats
-
-    @Query("SELECT * FROM chats WHERE id = (:chatId)")
-    fun getChatById(chatId: Int): Chat
-
-    @Insert
-    fun insertAll(vararg chats: Chat)
-
-    @Delete
-    fun delete(chat: Chat)
-
-//    Members
-
-    @Query("SELECT * FROM members WHERE id = (:memberId)")
-    fun getMemberById(memberId: Int): Member
-
-    @Insert
-    fun insertAll(vararg members: Member)
-
-    @Delete
-    fun delete(member: Member)
-}
-
-@Database(entities = arrayOf(User::class, Message::class, Chat::class, Member::class), version = 1)
-abstract class AppDatabase : RoomDatabase() {
-
-    abstract fun jamDao(): jamDao
-
-    companion object {
-        // Singleton prevents multiple instances of database opening at the
-        // same time.
-        @Volatile
-        private var INSTANCE: AppDatabase? = null
-
-        fun getDatabase(context: Context): AppDatabase {
-            val tempInstance = INSTANCE
-            if (tempInstance != null) {
-                return tempInstance
-            }
-            synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "jam_database"
-                ).build()
-                INSTANCE = instance
-                return instance
-            }
-        }
-    }
-}
