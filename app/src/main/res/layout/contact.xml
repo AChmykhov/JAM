@@ -13,13 +13,15 @@
 
     <ImageView
         android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:src="@mipmap/ic_launcher_round"/>
+        android:layout_height="23dp"
+        android:src="@mipmap/ic_launcher_round" />
 
     <TextView
         android:id='@+id/contactName'
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-        tools:text="ExampleList"/>
+        android:layout_marginLeft="8dp"
+        tools:text="ExampleList"
+        android:autoLink="all"/>
 </LinearLayout>

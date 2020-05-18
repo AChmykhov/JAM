@@ -1,5 +1,6 @@
 package com.example.jam
 
+import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.*
 import androidx.appcompat.app.AppCompatActivity
@@ -19,14 +20,6 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    private fun generateFakeValues(): List<String> {
-        val values = mutableListOf<String>()
-        for(i in 0..100) {
-            values.add("$i element")
-        }
-
-        return values
-    }
 
     class Adapter(private val values: List<String>): RecyclerView.Adapter<Adapter.ViewHolder>() {
 
@@ -48,6 +41,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+    }
+    private fun generateFakeValues(): List<String> {
+        val values = mutableListOf<String>()
+        for(i in 0..100) {
+            values.add("$i element")
+        }
+
+        return values
     }
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         val retValue = super.onCreateOptionsMenu(menu)

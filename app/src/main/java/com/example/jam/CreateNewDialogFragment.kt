@@ -54,6 +54,8 @@ class CreateNewDialogFragment : DialogFragment(){
             return
         }
         val i = Intent(activity, DialogActivity::class.java)
+        i.putExtra("IP", getIP())
+        i.putExtra("name", getName())
         startActivity(i)
 //        dialog?.cancel()
     }

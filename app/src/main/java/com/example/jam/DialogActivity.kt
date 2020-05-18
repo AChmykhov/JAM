@@ -1,15 +1,20 @@
 package com.example.jam
 
 import android.content.Context
+import android.content.Intent
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.util.Base64
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.ui.AppBarConfiguration
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.android.volley.Request
 import com.android.volley.RequestQueue
 import com.android.volley.Response
@@ -17,6 +22,7 @@ import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.google.android.material.textfield.TextInputEditText
 import fi.iki.elonen.NanoHTTPD
+import kotlinx.android.synthetic.main.dialog_activity.*
 import java.io.IOException
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -43,11 +49,16 @@ class DialogActivity : AppCompatActivity(){
         queue = Volley.newRequestQueue(this@DialogActivity)
         super.onCreate(savedInstanceState)
         findViewById<TextView>(R.id.myIP).text = getLocalIpAddress().toString()
+        val recyclerView : RecyclerView = findViewById(R.id.messageList)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.adapter = MainActivity.Adapter(generateFakeValues())
+        ipOfFriend.text = getIP()
+        nameOfFriend.text = getName()
+        val messages: List<String> = listOf()
     }
 
-
-
     fun showMessage(msg: String) {
+
         runOnUiThread {
             Toast.makeText(
                 this@DialogActivity,
@@ -136,9 +147,15 @@ class DialogActivity : AppCompatActivity(){
                 (i shr 24 and 0xFF)
     }
 
+    fun getName(): String{
+        val name = intent.getStringExtra("name")
+        return name
+    }
     fun getIP(): String {
-        val dataIP = findViewById<TextInputEditText>(R.id.ipInput)
-        return dataIP.text.toString()
+      //  val dataIP = findViewById<TextInputEditText>(R.id.ipInput)
+        val dataIP = intent.getStringExtra("IP")
+      //  return dataIP.text.toString()
+        return dataIP
     }
 
     fun getMessageText(): String {
@@ -267,5 +284,46 @@ class DialogActivity : AppCompatActivity(){
         server.stpServer()
 //        mediaplayer.stop()
         finish()
+    }
+    private fun generateFakeValues(): List<String> {
+        val values = mutableListOf<String>()
+        val ics = mutableListOf<Int>()
+        for(i in 0..4) {
+            if (i%2==0){
+                values.add("Hello world")
+                ics.add(R.drawable.ic_android)
+            }
+            else{
+                values.add("Hello coder")
+                ics.add(R.drawable.ic_home)
+            }
+        }
+
+        return values
+    }
+    class Adapter(private val values: List<String>): RecyclerView.Adapter<Adapter.ViewHolder>() {
+
+        override fun getItemCount() = values.size
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val itemView = LayoutInflater.from(parent.context).inflate(R.layout.contact, parent, false)
+            return ViewHolder(itemView)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            holder?.textView?.text = values[position]
+        }
+
+        class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            var textView: TextView? = null
+            init {
+                textView = itemView?.findViewById(R.id.contactName)
+            }
+        }
+
+    }
+    fun goBack(view: View){
+        val intent = Intent(this@DialogActivity, MainActivity::class.java)
+        startActivity(intent)
     }
 }
