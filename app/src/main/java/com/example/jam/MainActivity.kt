@@ -109,6 +109,9 @@ class MainActivity : AppCompatActivity() {
                 else -> return newFixedLengthResponse("200 OK")
             }
         }
+        /*
+        FIXME delete all
+         */
     }
 
     fun runServer() {

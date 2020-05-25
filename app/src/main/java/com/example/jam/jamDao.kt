@@ -1,13 +1,14 @@
 package com.example.jam
 
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 
 @Dao
-interface jamDao{
+interface jamDao {
 
 //    Users:
 
@@ -20,8 +21,8 @@ interface jamDao{
     @Delete
     fun delete(users: User)
 
-//    Messages
-    @Query("SELECT * FROM messages WHERE chat_id = (:chatId) ORDER BY time")
+    //    Messages
+    @Query("SELECT * FROM messages WHERE chat_id = (:chatId) ORDER BY time ASC") //To get messages in order by decreasing time replase ASC with DESC
     fun getAllChatMessages(chatId: Int): LiveData<List<Message>>
 
     @Query("SELECT * FROM messages WHERE id = (:messageId)")
@@ -33,9 +34,9 @@ interface jamDao{
     @Delete
     fun delete(message: Message)
 
-//    Chats
+    //    Chats
     @Query("SELECT * FROM chats ORDER BY name ASC")
-    fun getAllChatAlphabet(): LiveData<List<Chat>>
+    fun getAllChatAlphabet(): MutableLiveData<List<Chat>>
 
     @Query("SELECT * FROM chats WHERE id = (:chatId)")
     fun getChatById(chatId: Int): Chat

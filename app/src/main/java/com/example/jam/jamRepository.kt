@@ -4,10 +4,15 @@ import androidx.lifecycle.LiveData
 
 class jamRepository(private val jamDao: jamDao) {
     val allChats: LiveData<List<Chat>> = jamDao.getAllChatAlphabet()
+    //val allMessage: LiveData<List<Message>>
 
-    suspend fun insertUser(user: User){
+    fun insertUser(user: User) {
         jamDao.insertAll(user)
-       jamDao.insertAll(Chat(name="${user.firstName} ${user.lastName}"))
+        jamDao.insertAll(Chat(name = "${user.firstName} ${user.lastName}", id = 0))
+    }
+
+    fun insertMessage(message: Message) {
+        jamDao.insertAll(message)
     }
 
 
