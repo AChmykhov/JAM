@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="names">
+        <item>Test1</item>
+        <item>Test2</item>
+        <item>Test1</item>
+        <item>Test2</item>
+        <item>Test1</item>
+        <item>Test2</item>
+        <item>Test1</item>
+        <item>Test2</item>
+        <item>Test1</item>
+        <item>Test2</item>
+        <item>Test1</item>
+        <item>Test2</item>
+        <item>Test1</item>
+        <item>Test2</item>
+        <item>Test1</item>
+        <item>Test2</item>
+        <item>Test1</item>
+        <item>Test2</item>
+        <item>Test1</item>
+        <item>Test2</item>
+        <item>Test1</item>
+        <item>Test2</item>
+        <item>Test1</item>
+        <item>Test2</item>
+    </string-array>
+    <string-array name="IPs">
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+        <item>77.872.67.54</item>
+    </string-array>
+</resources>
